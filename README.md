@@ -1,5 +1,9 @@
 # @noro/barrierefreiheit
 
+[![JSR](https://jsr.io/badges/@noro/barrierefreiheit)](https://jsr.io/@noro/barrierefreiheit)
+[![Check](https://github.com/robspan/noro-a11y/actions/workflows/check.yml/badge.svg)](https://github.com/robspan/noro-a11y/actions/workflows/check.yml)
+[![Lizenz: CC0-1.0](https://img.shields.io/badge/Lizenz-CC0--1.0-2454eb)](./LICENSE)
+
 Typisierte Orchestrierung für wiederholbare Barrierefreiheitsprüfungen. Das
 Paket führt ausgewählte Engines aus, normalisiert ihre Ergebnisse und liefert
 öffentliche Befundtexte auf Deutsch. Ursprüngliche Toolmeldungen bleiben nur
