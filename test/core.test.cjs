@@ -1,26 +1,31 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  ENGINE_IDS,
-  renderAgentReport,
-  renderHtmlReport,
-  renderMarkdownReport,
-  renderPdfReport,
-  renderSarifReport,
-  resolveEngines,
-  runAccessibilityChecks,
-} = require('../dist');
+let packageApi;
+
+test.before(async () => {
+  packageApi = await import('../dist/index.js');
+});
 
 test('all selects every available engine', () => {
+  const { ENGINE_IDS, resolveEngines } = packageApi;
   assert.deepEqual(resolveEngines('all'), [...ENGINE_IDS]);
 });
 
 test('a subset is deduplicated and unknown engines are rejected', () => {
+  const { resolveEngines } = packageApi;
   assert.deepEqual(resolveEngines(['http', 'http', 'html-validate']), ['http', 'html-validate']);
   assert.throws(() => resolveEngines(['unknown']), /Unbekannte Prüfengine/);
 });
 
 test('HTTP and HTML findings are German and retain stable rule IDs', async () => {
+  const {
+    renderAgentReport,
+    renderHtmlReport,
+    renderMarkdownReport,
+    renderPdfReport,
+    renderSarifReport,
+    runAccessibilityChecks,
+  } = packageApi;
   const result = await runAccessibilityChecks({
     url: 'https://example.org',
     html: '<!doctype html><html><head><title></title></head><body><main><img src="x"><div id="same"></div><div id="same"></div></main></body></html>',

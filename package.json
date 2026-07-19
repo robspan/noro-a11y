@@ -1,14 +1,23 @@
 {
   "name": "@noro/barrierefreiheit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
+  "type": "module",
   "description": "Deutsche, typisierte Befunde aus wiederholbaren Barrierefreiheitsprüfungen",
   "license": "CC0-1.0",
-  "main": "dist/index.js",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "test": "tsc -p tsconfig.json && node --test test/*.test.cjs",
+    "build": "tsup",
+    "test": "npm run build && node --test test/*.test.cjs",
     "test:jsr": "jsr publish --dry-run"
   },
   "dependencies": {
@@ -24,6 +33,7 @@
     "@types/node": "^22.20.1",
     "jsr": "^0.14.3",
     "playwright": "^1.52.0",
+    "tsup": "^8.5.1",
     "typescript": "^5.8.3"
   },
   "engines": {
