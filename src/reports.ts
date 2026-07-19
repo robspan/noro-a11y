@@ -28,7 +28,7 @@ export function renderSarifReport(result: AccessibilityRunResult): Record<string
     $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
     version: '2.1.0',
     runs: [{
-      tool: { driver: { name: '@noro/noro', informationUri: 'https://jsr.io/@noro/noro', rules } },
+      tool: { driver: { name: '@noro/barrierefreiheit', informationUri: 'https://jsr.io/@noro/barrierefreiheit', rules } },
       automationDetails: { description: { text: `Barrierefreiheitsprüfung von ${result.url}` } },
       results: result.findings.map((finding) => ({
         ruleId: `${finding.engine}/${finding.ruleId}`,
@@ -101,7 +101,7 @@ export function renderHtmlReport(result: AccessibilityRunResult, options: Report
 ${options.preparedFor ? `<p>Erstellt für: <strong>${escapeHtml(options.preparedFor)}</strong></p>` : ''}
 <section aria-label="Befunde">${findings || '<p>Keine automatischen Befunde.</p>'}</section>
 <aside><strong>Einordnung:</strong> Automatische Prüfungen allein weisen keine rechtliche Konformität nach.</aside>
-</main><footer>@noro/noro · ${escapeHtml(formatDate(result.completedAt))}</footer></body></html>`;
+</main><footer>@noro/barrierefreiheit · ${escapeHtml(formatDate(result.completedAt))}</footer></body></html>`;
 }
 
 /** Liefert einen deterministischen, agententauglichen Maßnahmenplan als JSON-Objekt. */

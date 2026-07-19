@@ -120,7 +120,7 @@ function ensureSpace(context: PdfContext, required: number): void {
 
 function drawFooter(page: PDFPage, font: PDFFont, current: number, total: number): void {
   page.drawLine({ start: { x: PAGE.margin, y: 48 }, end: { x: PAGE.width - PAGE.margin, y: 48 }, thickness: 1, color: COLOR.line });
-  page.drawText('@noro/noro · JSR', { x: PAGE.margin, y: 28, font, size: 8, color: COLOR.grey });
+  page.drawText('@noro/barrierefreiheit · JSR', { x: PAGE.margin, y: 28, font, size: 8, color: COLOR.grey });
   page.drawText(`${current} / ${total}`, { x: PAGE.width - PAGE.margin - 22, y: 28, font, size: 8, color: COLOR.grey });
 }
 

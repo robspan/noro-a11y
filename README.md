@@ -1,16 +1,16 @@
-# @noro/noro
+# @noro/barrierefreiheit
 
 Typisierte Orchestrierung für wiederholbare Barrierefreiheitsprüfungen. Das
 Paket führt ausgewählte Engines aus, normalisiert ihre Ergebnisse und liefert
 öffentliche Befundtexte auf Deutsch. Ursprüngliche Toolmeldungen bleiben nur
 als diagnostische Metadaten erhalten.
 
-Veröffentlichung: ausschließlich über JSR als `jsr:@noro/noro`. Die lokale
+Veröffentlichung: ausschließlich über JSR als `jsr:@noro/barrierefreiheit`. Die lokale
 `package.json` ist als privat markiert und verhindert eine versehentliche
 Veröffentlichung auf npm.
 
 ```ts
-import { runAccessibilityChecks } from '@noro/noro';
+import { runAccessibilityChecks } from '@noro/barrierefreiheit';
 
 const result = await runAccessibilityChecks(
   {
@@ -41,7 +41,7 @@ await runAccessibilityChecks(input, {
 - `renderPdfReport`: versandfertiger PDF-Bericht im Noro-Erscheinungsbild
 
 ```ts
-import { renderAgentReport, renderPdfReport, renderSarifReport } from '@noro/noro';
+import { renderAgentReport, renderPdfReport, renderSarifReport } from '@noro/barrierefreiheit';
 
 const agentTasks = renderAgentReport(result);
 const sarif = renderSarifReport(result);
@@ -60,13 +60,13 @@ mit einem Fehler abgelehnt, nicht stillschweigend ignoriert.
 ## Installation über JSR
 
 ```sh
-deno add jsr:@noro/noro
+deno add jsr:@noro/barrierefreiheit
 ```
 
 Node-Projekte können JSR über einen kompatiblen Paketmanager verwenden:
 
 ```sh
-pnpm add jsr:@noro/noro
+pnpm add jsr:@noro/barrierefreiheit
 ```
 
 ## Übersetzungsprinzip
