@@ -17,6 +17,91 @@ test('a subset is deduplicated and unknown engines are rejected', () => {
   assert.throws(() => resolveEngines(['unknown']), /Unbekannte Prüfengine/);
 });
 
+test('the crawler follows same-host links breadth-first up to the requested depth', async () => {
+  const { crawlAccessibilityChecks } = packageApi;
+  const documents = new Map([
+    ['https://example.org/', '<html lang="de"><title>Start</title><a href="/one#content">One</a><a href="https://outside.test/">Outside</a></html>'],
+    ['https://example.org/one', '<html lang="de"><title>One</title><a href="/two">Two</a><a href="/">Start</a></html>'],
+    ['https://example.org/two', '<html lang="de"><title>Two</title></html>'],
+  ]);
+  const loaded = [];
+  const result = await crawlAccessibilityChecks('https://example.org', {
+    depth: 1,
+    maxPages: 10,
+    engines: ['http'],
+    loadPage: async (url) => {
+      loaded.push(url);
+      const html = documents.get(url);
+      if (!html) throw new Error(`Unexpected URL: ${url}`);
+      return { url, html, http: { status: 200, headers: { 'content-type': 'text/html' } } };
+    },
+  });
+
+  assert.deepEqual(loaded, ['https://example.org/', 'https://example.org/one']);
+  assert.equal(result.pages.filter(({ status }) => status === 'completed').length, 2);
+  assert.equal(result.pages.some(({ url }) => url === 'https://example.org/two'), false);
+  assert.equal(result.findings.every(({ url, depth }) => url.startsWith('https://example.org/') && depth <= 1), true);
+  assert.equal(result.truncated, false);
+});
+
+test('the crawler caps page count and skips non-HTML targets and cross-host redirects', async () => {
+  const { crawlAccessibilityChecks } = packageApi;
+  const result = await crawlAccessibilityChecks('https://example.org', {
+    depth: 2,
+    maxPages: 3,
+    engines: ['http'],
+    loadPage: async (url) => {
+      if (url === 'https://example.org/') {
+        return {
+          url,
+          html: '<html lang="de"><title>Start</title><a href="/document.pdf" download>PDF</a><a href="/one">One</a><a href="/two">Two</a><a href="/three">Three</a></html>',
+          http: { status: 200, headers: { 'content-type': 'text/html' } },
+        };
+      }
+      if (url.endsWith('/one')) {
+        return { url, html: '%PDF', http: { status: 200, headers: { 'Content-Type': 'application/pdf' } } };
+      }
+      return {
+        url: 'https://outside.test/redirected',
+        html: '<html lang="de"><title>Outside</title></html>',
+        http: { status: 200, headers: { 'content-type': 'text/html' } },
+      };
+    },
+  });
+
+  assert.deepEqual(result.pages.map(({ status }) => status), ['completed', 'skipped', 'skipped']);
+  assert.equal(result.truncated, true);
+  assert.equal(result.pages.some(({ requestedUrl }) => requestedUrl.endsWith('document.pdf')), false);
+});
+
+test('crawler options reject unsafe bounds', async () => {
+  const { crawlAccessibilityChecks } = packageApi;
+  await assert.rejects(
+    crawlAccessibilityChecks('https://example.org', { depth: 11, loadPage: async () => ({ url: '', html: '' }) }),
+    /depth muss eine ganze Zahl zwischen 0 und 10/,
+  );
+});
+
+test('the crawler defaults to depth one and at most ten loaded targets', async () => {
+  const { crawlAccessibilityChecks } = packageApi;
+  const links = Array.from({ length: 12 }, (_, index) => `<a href="/${index + 1}">Page</a>`).join('');
+  const result = await crawlAccessibilityChecks('https://example.org', {
+    engines: ['http'],
+    loadPage: async (url) => ({
+      url,
+      html: url === 'https://example.org/'
+        ? `<html lang="de"><title>Start</title>${links}</html>`
+        : '<html lang="de"><title>Child</title></html>',
+      http: { status: 200, headers: { 'content-type': 'text/html' } },
+    }),
+  });
+
+  assert.equal(result.depth, 1);
+  assert.equal(result.maxPages, 10);
+  assert.equal(result.pages.length, 10);
+  assert.equal(result.truncated, true);
+});
+
 test('HTTP and HTML findings are German and retain stable rule IDs', async () => {
   const {
     renderAgentReport,

@@ -53,6 +53,15 @@ export interface AccessibilityRunOptions {
   engines?: EngineSelection;
 }
 
+export interface AccessibilityCrawlOptions extends AccessibilityRunOptions {
+  /** Anzahl der Link-Ebenen ab der Startseite. 0 prüft nur die Startseite. */
+  depth?: number;
+  /** Harte Obergrenze für geladene Ziele, unabhängig von der Link-Tiefe. */
+  maxPages?: number;
+  /** Lädt ein Ziel und stellt es den bestehenden Prüf-Engines bereit. */
+  loadPage: (url: string, depth: number) => Promise<AccessibilityRunInput>;
+}
+
 export interface AccessibilityRunResult {
   url: string;
   locale: 'de';
@@ -61,6 +70,35 @@ export interface AccessibilityRunResult {
   completedAt: string;
   results: EngineResult[];
   findings: NormalizedFinding[];
+}
+
+export type AccessibilityCrawlPageStatus = 'completed' | 'skipped' | 'failed';
+
+export interface AccessibilityCrawlPageResult {
+  requestedUrl: string;
+  url: string;
+  depth: number;
+  status: AccessibilityCrawlPageStatus;
+  result?: AccessibilityRunResult;
+  error?: string;
+}
+
+export interface AccessibilityCrawlFinding extends NormalizedFinding {
+  url: string;
+  depth: number;
+}
+
+export interface AccessibilityCrawlResult {
+  url: string;
+  locale: 'de';
+  requestedEngines: EngineId[];
+  depth: number;
+  maxPages: number;
+  startedAt: string;
+  completedAt: string;
+  truncated: boolean;
+  pages: AccessibilityCrawlPageResult[];
+  findings: AccessibilityCrawlFinding[];
 }
 
 export type ReportFormat = 'json' | 'sarif' | 'markdown' | 'html' | 'agent' | 'pdf';

@@ -35,6 +35,35 @@ await runAccessibilityChecks(input, {
 });
 ```
 
+## Verlinkte Seiten prüfen
+
+`crawlAccessibilityChecks` folgt internen Links in Breite. Standardmäßig werden
+mit `depth: 1` die Startseite und deren direkt verlinkte Seiten geprüft, begrenzt
+auf insgesamt 10 Seiten. `depth: 0` prüft nur die Startseite. Externe
+Hosts, Fragmentvarianten, Download-Links und Nicht-HTML-Antworten werden nicht
+geprüft. `maxPages` setzt unabhängig von der Tiefe eine harte Obergrenze.
+
+Das Paket lädt URLs nicht ungefragt selbst. Die Anwendung behält dadurch die
+Kontrolle über SSRF-Schutz, Authentifizierung, Timeouts und Browser-Kontexte.
+
+```ts
+import { crawlAccessibilityChecks } from '@spanier-one/barrierefreiheit';
+
+const crawl = await crawlAccessibilityChecks('https://example.org', {
+  depth: 2,
+  maxPages: 30,
+  engines: ['http', 'html-validate'],
+  loadPage: async (url) => {
+    const response = await safeHttpClient.get(url);
+    return {
+      url: response.finalUrl,
+      html: response.body,
+      http: { status: response.status, headers: response.headers },
+    };
+  },
+});
+```
+
 ## Ausgabeformate
 
 - `renderJsonReport`: vollständiges typisiertes Prüfergebnis
