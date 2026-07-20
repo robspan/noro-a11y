@@ -34,14 +34,9 @@ export async function runHttpEngine(input: AccessibilityRunInput): Promise<Engin
   }
 
   const images = input.html.match(/<img\b[^>]*>/gi) ?? [];
-  const missingAlt = images.filter((image) => !/\balt\s*=\s*(["']).*?\1/i.test(image)).length;
+  const missingAlt = images.filter((image) => !hasAltAttribute(image)).length;
   if (missingAlt > 0) {
-    findings.push(httpFinding(
-      'html-images-without-alt',
-      'critical',
-      `${missingAlt} Bildelement${missingAlt === 1 ? '' : 'e'} ohne alt-Attribut gefunden.`,
-      ['1.1.1'],
-    ));
+    findings.push(httpFinding('html-images-without-alt', 'critical', `${missingAlt} Bildelement${missingAlt === 1 ? '' : 'e'} ohne alt-Attribut gefunden.`, ['1.1.1']));
     criterionResults.push(criterion('1.1.1', 'failed', 'http.image-alt'));
   }
 
@@ -57,26 +52,26 @@ export async function runHttpEngine(input: AccessibilityRunInput): Promise<Engin
       bytesInspected: Buffer.byteLength(input.html),
       imagesInspected: images.length,
     },
-    limitations: [
-      'Diese Prüfung bewertet eine HTTP-Antwort mit deterministischen Heuristiken.',
-      'Sie ersetzt weder die gerenderte Prüfung noch eine manuelle Abnahme.',
-    ],
+    limitations: ['Diese Prüfung bewertet eine HTTP-Antwort mit deterministischen Heuristiken.', 'Sie ersetzt weder die gerenderte Prüfung noch eine manuelle Abnahme.'],
   };
 }
 
-function httpFinding(
-  ruleId: string,
-  severity: NormalizedFinding['severity'],
-  message: string,
-  wcagCriteria?: string[],
-): NormalizedFinding {
-  return normalizedFinding({ engine: 'http', ruleId, severity, message, wcagCriteria });
+function hasAltAttribute(image: string): boolean {
+  // HTML permits empty attributes (`alt`), quoted values and unquoted values.
+  // Angular SSR serializes `alt=""` as the equivalent empty `alt` attribute.
+  return /\balt(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?(?=\s|\/?>)/i.test(image);
 }
 
-function criterion(
-  value: string,
-  outcome: AutomatedCriterionResult['outcome'],
-  source: string,
-): AutomatedCriterionResult {
+function httpFinding(ruleId: string, severity: NormalizedFinding['severity'], message: string, wcagCriteria?: string[]): NormalizedFinding {
+  return normalizedFinding({
+    engine: 'http',
+    ruleId,
+    severity,
+    message,
+    wcagCriteria,
+  });
+}
+
+function criterion(value: string, outcome: AutomatedCriterionResult['outcome'], source: string): AutomatedCriterionResult {
   return { criterion: value, outcome, source };
 }

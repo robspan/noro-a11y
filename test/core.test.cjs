@@ -33,14 +33,24 @@ test('the crawler follows same-host links breadth-first up to the requested dept
       loaded.push(url);
       const html = documents.get(url);
       if (!html) throw new Error(`Unexpected URL: ${url}`);
-      return { url, html, http: { status: 200, headers: { 'content-type': 'text/html' } } };
+      return {
+        url,
+        html,
+        http: { status: 200, headers: { 'content-type': 'text/html' } },
+      };
     },
   });
 
   assert.deepEqual(loaded, ['https://example.org/', 'https://example.org/one']);
   assert.equal(result.pages.filter(({ status }) => status === 'completed').length, 2);
-  assert.equal(result.pages.some(({ url }) => url === 'https://example.org/two'), false);
-  assert.equal(result.findings.every(({ url, depth }) => url.startsWith('https://example.org/') && depth <= 1), true);
+  assert.equal(
+    result.pages.some(({ url }) => url === 'https://example.org/two'),
+    false,
+  );
+  assert.equal(
+    result.findings.every(({ url, depth }) => url.startsWith('https://example.org/') && depth <= 1),
+    true,
+  );
   assert.equal(result.truncated, false);
 });
 
@@ -59,7 +69,11 @@ test('the crawler caps page count and skips non-HTML targets and cross-host redi
         };
       }
       if (url.endsWith('/one')) {
-        return { url, html: '%PDF', http: { status: 200, headers: { 'Content-Type': 'application/pdf' } } };
+        return {
+          url,
+          html: '%PDF',
+          http: { status: 200, headers: { 'Content-Type': 'application/pdf' } },
+        };
       }
       return {
         url: 'https://outside.test/redirected',
@@ -69,15 +83,24 @@ test('the crawler caps page count and skips non-HTML targets and cross-host redi
     },
   });
 
-  assert.deepEqual(result.pages.map(({ status }) => status), ['completed', 'skipped', 'skipped']);
+  assert.deepEqual(
+    result.pages.map(({ status }) => status),
+    ['completed', 'skipped', 'skipped'],
+  );
   assert.equal(result.truncated, true);
-  assert.equal(result.pages.some(({ requestedUrl }) => requestedUrl.endsWith('document.pdf')), false);
+  assert.equal(
+    result.pages.some(({ requestedUrl }) => requestedUrl.endsWith('document.pdf')),
+    false,
+  );
 });
 
 test('crawler options reject unsafe bounds', async () => {
   const { crawlAccessibilityChecks } = packageApi;
   await assert.rejects(
-    crawlAccessibilityChecks('https://example.org', { depth: 11, loadPage: async () => ({ url: '', html: '' }) }),
+    crawlAccessibilityChecks('https://example.org', {
+      depth: 11,
+      loadPage: async () => ({ url: '', html: '' }),
+    }),
     /depth muss eine ganze Zahl zwischen 0 und 10/,
   );
 });
@@ -89,9 +112,7 @@ test('the crawler defaults to depth one and at most ten loaded targets', async (
     engines: ['http'],
     loadPage: async (url) => ({
       url,
-      html: url === 'https://example.org/'
-        ? `<html lang="de"><title>Start</title>${links}</html>`
-        : '<html lang="de"><title>Child</title></html>',
+      html: url === 'https://example.org/' ? `<html lang="de"><title>Start</title>${links}</html>` : '<html lang="de"><title>Child</title></html>',
       http: { status: 200, headers: { 'content-type': 'text/html' } },
     }),
   });
@@ -122,21 +143,15 @@ test('the crawler emits page and finding progress for streaming consumers', asyn
 });
 
 test('HTTP and HTML findings are German and retain stable rule IDs', async () => {
-  const {
-    renderAgentReport,
-    renderHtmlReport,
-    renderMarkdownReport,
-    renderPdfReport,
-    renderSarifReport,
-    runAccessibilityChecks,
-    SPANIER_ONE_REPORT_URL,
-    summarizeAutomatedRisk,
-  } = packageApi;
-  const result = await runAccessibilityChecks({
-    url: 'https://example.org',
-    html: '<!doctype html><html><head><title></title></head><body><main><img src="x"><div id="same"></div><div id="same"></div></main></body></html>',
-    http: { status: 200, headers: { 'content-type': 'text/html' } },
-  }, { engines: ['http', 'html-validate'] });
+  const { renderAgentReport, renderHtmlReport, renderMarkdownReport, renderPdfReport, renderSarifReport, runAccessibilityChecks, SPANIER_ONE_REPORT_URL, summarizeAutomatedRisk } = packageApi;
+  const result = await runAccessibilityChecks(
+    {
+      url: 'https://example.org',
+      html: '<!doctype html><html><head><title></title></head><body><main><img src="x"><div id="same"></div><div id="same"></div></main></body></html>',
+      http: { status: 200, headers: { 'content-type': 'text/html' } },
+    },
+    { engines: ['http', 'html-validate'] },
+  );
 
   assert.ok(result.findings.some((finding) => finding.ruleId === 'html-missing-lang'));
   assert.ok(result.findings.some((finding) => finding.ruleId === 'no-dup-id'));
@@ -175,19 +190,76 @@ test('HTTP and HTML findings are German and retain stable rule IDs', async () =>
   assert.match(pdfStructure, /\/URI \(https:\/\/spanier\.one\//);
 });
 
+test('HTTP image-alt accepts every valid HTML attribute syntax', async () => {
+  const { runAccessibilityChecks } = packageApi;
+  for (const image of ['<img src="decorative.svg" alt>', '<img src="decorative.svg" alt="">', '<img src="logo.svg" alt="Beispiel GmbH">', '<img src="logo.svg" alt=Beispiel>']) {
+    const result = await runAccessibilityChecks(
+      {
+        url: 'https://example.org',
+        html: `<!doctype html><html lang="de"><head><title>Test</title></head><body>${image}</body></html>`,
+        http: { status: 200, headers: { 'content-type': 'text/html' } },
+      },
+      { engines: ['http'] },
+    );
+
+    assert.equal(
+      result.findings.some(({ ruleId }) => ruleId === 'html-images-without-alt'),
+      false,
+      image,
+    );
+  }
+
+  const missing = await runAccessibilityChecks(
+    {
+      url: 'https://example.org',
+      html: '<!doctype html><html lang="de"><head><title>Test</title></head><body><img src="missing.svg"></body></html>',
+      http: { status: 200, headers: { 'content-type': 'text/html' } },
+    },
+    { engines: ['http'] },
+  );
+  assert.equal(
+    missing.findings.some(({ ruleId }) => ruleId === 'html-images-without-alt'),
+    true,
+  );
+});
+
 test('the automated risk index is deterministic and never claims conformance', () => {
   const { summarizeAutomatedRisk } = packageApi;
   const result = {
-    url: 'https://example.org', locale: 'de', requestedEngines: ['http', 'axe'],
-    startedAt: '2026-07-20T08:00:00.000Z', completedAt: '2026-07-20T08:00:01.000Z',
+    url: 'https://example.org',
+    locale: 'de',
+    requestedEngines: ['http', 'axe'],
+    startedAt: '2026-07-20T08:00:00.000Z',
+    completedAt: '2026-07-20T08:00:01.000Z',
     results: [
       { engine: 'http', status: 'completed', summary: '', findings: [] },
       { engine: 'axe', status: 'failed', summary: '', findings: [] },
     ],
     findings: [
-      { code: 'a', engine: 'http', ruleId: 'a', severity: 'critical', message: 'A', translationStatus: 'verified' },
-      { code: 'b', engine: 'http', ruleId: 'b', severity: 'warning', message: 'B', translationStatus: 'verified' },
-      { code: 'c', engine: 'http', ruleId: 'c', severity: 'info', message: 'C', translationStatus: 'verified' },
+      {
+        code: 'a',
+        engine: 'http',
+        ruleId: 'a',
+        severity: 'critical',
+        message: 'A',
+        translationStatus: 'verified',
+      },
+      {
+        code: 'b',
+        engine: 'http',
+        ruleId: 'b',
+        severity: 'warning',
+        message: 'B',
+        translationStatus: 'verified',
+      },
+      {
+        code: 'c',
+        engine: 'http',
+        ruleId: 'c',
+        severity: 'info',
+        message: 'C',
+        translationStatus: 'verified',
+      },
     ],
   };
   const summary = summarizeAutomatedRisk(result);
@@ -205,21 +277,24 @@ test('the branded HTML report has no automated WCAG A or AA violations in any ri
     const context = await browser.newContext();
     for (const [scenario, findings] of severities.entries()) {
       const page = await context.newPage();
-      const result = accessibilityResult(findings.map((severity, index) => ({
-        code: `http.test-${scenario}-${index}`,
-        engine: 'http',
-        ruleId: `test-${scenario}-${index}`,
-        severity,
-        message: `Beispielbefund ${index + 1}.`,
-        translationStatus: 'verified',
-        wcagCriteria: ['1.1.1'],
-        selectors: ['main > img'],
-      })));
+      const result = accessibilityResult(
+        findings.map((severity, index) => ({
+          code: `http.test-${scenario}-${index}`,
+          engine: 'http',
+          ruleId: `test-${scenario}-${index}`,
+          severity,
+          message: `Beispielbefund ${index + 1}.`,
+          translationStatus: 'verified',
+          wcagCriteria: ['1.1.1'],
+          selectors: ['main > img'],
+        })),
+      );
       await page.setContent(packageApi.renderHtmlReport(result));
-      const scan = await new AxeBuilder({ page })
-        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-        .analyze();
-      assert.deepEqual(scan.violations.map(({ id }) => id), []);
+      const scan = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
+      assert.deepEqual(
+        scan.violations.map(({ id }) => id),
+        [],
+      );
       await page.close();
     }
     await context.close();
@@ -235,13 +310,15 @@ function accessibilityResult(findings) {
     requestedEngines: ['http'],
     startedAt: '2026-07-20T08:00:00.000Z',
     completedAt: '2026-07-20T08:00:01.000Z',
-    results: [{
-      engine: 'http',
-      status: 'completed',
-      summary: 'Eine HTTP-Antwort geprüft.',
-      findings,
-      limitations: ['Eine manuelle Prüfung bleibt erforderlich.'],
-    }],
+    results: [
+      {
+        engine: 'http',
+        status: 'completed',
+        summary: 'Eine HTTP-Antwort geprüft.',
+        findings,
+        limitations: ['Eine manuelle Prüfung bleibt erforderlich.'],
+      },
+    ],
     findings,
   };
 }
