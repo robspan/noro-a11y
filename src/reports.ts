@@ -28,7 +28,7 @@ export function renderSarifReport(result: AccessibilityRunResult): Record<string
     $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
     version: '2.1.0',
     runs: [{
-      tool: { driver: { name: '@noro/barrierefreiheit', informationUri: 'https://jsr.io/@noro/barrierefreiheit', rules } },
+      tool: { driver: { name: '@spanier-one/barrierefreiheit', informationUri: 'https://jsr.io/@spanier-one/barrierefreiheit', rules } },
       automationDetails: { description: { text: `Barrierefreiheitsprüfung von ${result.url}` } },
       results: result.findings.map((finding) => ({
         ruleId: `${finding.engine}/${finding.ruleId}`,
@@ -94,14 +94,14 @@ export function renderHtmlReport(result: AccessibilityRunResult, options: Report
   return `<!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>${escapeHtml(title)}</title><style>${REPORT_CSS}</style></head>
-<body><header><strong>noro.</strong><span>Prüfbericht</span></header><main>
+<body><header><strong>spanier.one</strong><span>Prüfbericht</span></header><main>
 <p class="eyebrow">Automatische Bestandsaufnahme</p><h1>${escapeHtml(title)}</h1>
 <p class="lead">${escapeHtml(result.url)}</p>
 <section class="summary" aria-label="Zusammenfassung"><div><strong>${result.findings.length}</strong><span>Befunde</span></div><div><strong>${result.requestedEngines.length}</strong><span>Engines</span></div><div><strong>${criticalCount(result)}</strong><span>Kritisch</span></div></section>
 ${options.preparedFor ? `<p>Erstellt für: <strong>${escapeHtml(options.preparedFor)}</strong></p>` : ''}
 <section aria-label="Befunde">${findings || '<p>Keine automatischen Befunde.</p>'}</section>
 <aside><strong>Einordnung:</strong> Automatische Prüfungen allein weisen keine rechtliche Konformität nach.</aside>
-</main><footer>@noro/barrierefreiheit · ${escapeHtml(formatDate(result.completedAt))}</footer></body></html>`;
+</main><footer>@spanier-one/barrierefreiheit · ${escapeHtml(formatDate(result.completedAt))}</footer></body></html>`;
 }
 
 /** Liefert einen deterministischen, agententauglichen Maßnahmenplan als JSON-Objekt. */
@@ -123,7 +123,7 @@ export function renderAgentReport(result: AccessibilityRunResult): AgentReport {
 
 function toAgentTask(finding: NormalizedFinding, index: number): AgentTask {
   return {
-    id: `NORO-${String(index + 1).padStart(3, '0')}`,
+    id: `SPANIER-${String(index + 1).padStart(3, '0')}`,
     priority: finding.severity === 'critical' ? 'P0' : finding.severity === 'warning' ? 'P1' : 'P2',
     ruleId: finding.ruleId,
     engine: finding.engine,

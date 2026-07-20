@@ -9,4 +9,4 @@ CC0-1.0. Its dependencies retain their own licenses:
 - `pdf-lib`: MIT
 
 The German axe locale is loaded from `axe-core` at runtime and is not
-relicensed by Noro.
+relicensed by spanier.one.

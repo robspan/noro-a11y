@@ -1,6 +1,6 @@
-# @noro/barrierefreiheit
+# @spanier-one/barrierefreiheit
 
-[![JSR](https://jsr.io/badges/@noro/barrierefreiheit)](https://jsr.io/@noro/barrierefreiheit)
+[![JSR](https://jsr.io/badges/@spanier-one/barrierefreiheit)](https://jsr.io/@spanier-one/barrierefreiheit)
 [![Check](https://github.com/robspan/noro-a11y/actions/workflows/check.yml/badge.svg)](https://github.com/robspan/noro-a11y/actions/workflows/check.yml)
 [![Lizenz: CC0-1.0](https://img.shields.io/badge/Lizenz-CC0--1.0-2454eb)](./LICENSE)
 
@@ -9,12 +9,12 @@ Paket führt ausgewählte Engines aus, normalisiert ihre Ergebnisse und liefert
 öffentliche Befundtexte auf Deutsch. Ursprüngliche Toolmeldungen bleiben nur
 als diagnostische Metadaten erhalten.
 
-Veröffentlichung: ausschließlich über JSR als `jsr:@noro/barrierefreiheit`. Die lokale
+Veröffentlichung: ausschließlich über JSR als `jsr:@spanier-one/barrierefreiheit`. Die lokale
 `package.json` ist als privat markiert und verhindert eine versehentliche
 Veröffentlichung auf npm.
 
 ```ts
-import { runAccessibilityChecks } from '@noro/barrierefreiheit';
+import { runAccessibilityChecks } from '@spanier-one/barrierefreiheit';
 
 const result = await runAccessibilityChecks(
   {
@@ -42,10 +42,10 @@ await runAccessibilityChecks(input, {
 - `renderMarkdownReport`: lesbarer Bericht für Tickets und Dokumentation
 - `renderHtmlReport`: eigenständiger, responsiver HTML-Bericht
 - `renderAgentReport`: priorisierte Aufgaben und Abnahmekriterien für Coding Agents
-- `renderPdfReport`: versandfertiger PDF-Bericht im Noro-Erscheinungsbild
+- `renderPdfReport`: versandfertiger PDF-Bericht im spanier.one-Erscheinungsbild
 
 ```ts
-import { renderAgentReport, renderPdfReport, renderSarifReport } from '@noro/barrierefreiheit';
+import { renderAgentReport, renderPdfReport, renderSarifReport } from '@spanier-one/barrierefreiheit';
 
 const agentTasks = renderAgentReport(result);
 const sarif = renderSarifReport(result);
@@ -56,7 +56,7 @@ const pdf = await renderPdfReport(result, { preparedFor: 'Beispiel GmbH' });
 
 - `axe`: WCAG-orientierte DOM-Prüfungen mit der deutschen Sprache von axe-core
 - `html-validate`: deterministische Regeln für HTML-Struktur und Barrierefreiheit
-- `http`: Noro-Prüfungen für HTTP-Header und das rohe HTML-Dokument
+- `http`: spanier.one-Prüfungen für die HTML-Antwort und das rohe HTML-Dokument
 
 `all` führt alle Engines aus `ENGINE_IDS` aus. Unbekannte Engine-Namen werden
 mit einem Fehler abgelehnt, nicht stillschweigend ignoriert.
@@ -64,13 +64,13 @@ mit einem Fehler abgelehnt, nicht stillschweigend ignoriert.
 ## Installation über JSR
 
 ```sh
-deno add jsr:@noro/barrierefreiheit
+deno add jsr:@spanier-one/barrierefreiheit
 ```
 
 Node-Projekte können JSR über einen kompatiblen Paketmanager verwenden:
 
 ```sh
-pnpm add jsr:@noro/barrierefreiheit
+pnpm add jsr:@spanier-one/barrierefreiheit
 ```
 
 ## Übersetzungsprinzip

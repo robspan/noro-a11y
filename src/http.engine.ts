@@ -45,12 +45,6 @@ export async function runHttpEngine(input: AccessibilityRunInput): Promise<Engin
     criterionResults.push(criterion('1.1.1', 'failed', 'http.image-alt'));
   }
 
-  for (const header of ['content-security-policy', 'x-content-type-options', 'referrer-policy']) {
-    if (!headers[header]) {
-      findings.push(httpFinding(`header-missing-${header}`, 'info', `Der HTTP-Header „${header}“ fehlt.`));
-    }
-  }
-
   return {
     engine: 'http',
     status: 'completed',

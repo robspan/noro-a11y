@@ -12,7 +12,7 @@ const COLOR = {
   white: rgb(1, 1, 1),
 };
 
-/** Erzeugt einen eigenständigen PDF-Bericht im Noro-Erscheinungsbild. */
+/** Erzeugt einen eigenständigen PDF-Bericht im spanier.one-Erscheinungsbild. */
 export async function renderPdfReport(
   result: AccessibilityRunResult,
   options: ReportOptions = {},
@@ -33,10 +33,10 @@ export async function renderPdfReport(
 
   const pages = pdf.getPages();
   pages.forEach((page, index) => drawFooter(page, regular, index + 1, pages.length));
-  pdf.setTitle(options.title ?? `Noro Prüfbericht - ${result.url}`);
-  pdf.setAuthor('Noro');
+  pdf.setTitle(options.title ?? `spanier.one Prüfbericht - ${result.url}`);
+  pdf.setAuthor('spanier.one');
   pdf.setSubject('Automatischer Bericht zur digitalen Barrierefreiheit');
-  pdf.setKeywords(['Barrierefreiheit', 'WCAG', 'BFSG', 'Noro']);
+  pdf.setKeywords(['Barrierefreiheit', 'WCAG', 'BFSG', 'spanier.one']);
   return pdf.save();
 }
 
@@ -53,8 +53,8 @@ function newPage(pdf: PDFDocument, bold: PDFFont): PDFPage {
   const page = pdf.addPage([PAGE.width, PAGE.height]);
   page.drawRectangle({ x: 0, y: 0, width: PAGE.width, height: PAGE.height, color: COLOR.white });
   page.drawRectangle({ x: 0, y: PAGE.height - 16, width: PAGE.width, height: 16, color: COLOR.blue });
-  page.drawText('noro.', { x: PAGE.margin, y: PAGE.height - 58, font: bold, size: 24, color: COLOR.navy });
-  page.drawCircle({ x: 122, y: PAGE.height - 48, size: 7, color: COLOR.lime });
+  page.drawText('spanier.one', { x: PAGE.margin, y: PAGE.height - 58, font: bold, size: 24, color: COLOR.navy });
+  page.drawCircle({ x: 181, y: PAGE.height - 48, size: 7, color: COLOR.lime });
   return page;
 }
 
@@ -120,7 +120,7 @@ function ensureSpace(context: PdfContext, required: number): void {
 
 function drawFooter(page: PDFPage, font: PDFFont, current: number, total: number): void {
   page.drawLine({ start: { x: PAGE.margin, y: 48 }, end: { x: PAGE.width - PAGE.margin, y: 48 }, thickness: 1, color: COLOR.line });
-  page.drawText('@noro/barrierefreiheit · JSR', { x: PAGE.margin, y: 28, font, size: 8, color: COLOR.grey });
+  page.drawText('@spanier-one/barrierefreiheit · JSR', { x: PAGE.margin, y: 28, font, size: 8, color: COLOR.grey });
   page.drawText(`${current} / ${total}`, { x: PAGE.width - PAGE.margin - 22, y: 28, font, size: 8, color: COLOR.grey });
 }
 
