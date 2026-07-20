@@ -39,10 +39,19 @@ export async function crawlAccessibilityChecks(
 
   while (queue.length > 0 && pages.length < maxPages) {
     const current = queue.shift() as QueueItem;
+    const pageNumber = pages.length + 1;
+    await progress(options, {
+      phase: 'loading', url: current.url, depth: current.depth, pageNumber, maxPages,
+      message: `Lade Seite ${pageNumber}: ${displayUrl(current.url)}`,
+    });
     let input: AccessibilityRunInput;
     try {
       input = await options.loadPage(current.url, current.depth);
     } catch (error) {
+      await progress(options, {
+        phase: 'failed', url: current.url, depth: current.depth, pageNumber, maxPages,
+        message: `Seite konnte nicht geladen werden: ${displayUrl(current.url)}`,
+      });
       pages.push({
         requestedUrl: current.url,
         url: current.url,
@@ -55,13 +64,26 @@ export async function crawlAccessibilityChecks(
 
     const finalUrl = canonicalizeHttpUrl(input.url);
     if (!finalUrl) {
+      await progress(options, {
+        phase: 'skipped', url: current.url, depth: current.depth, pageNumber, maxPages,
+        message: 'Geladenes Ziel ohne gültige Webadresse übersprungen.',
+      });
       pages.push(skippedPage(current, current.url, 'Das geladene Ziel besitzt keine gültige HTTP- oder HTTPS-URL.'));
       continue;
     }
 
+    await progress(options, {
+      phase: 'loaded', url: finalUrl, depth: current.depth, pageNumber, maxPages,
+      message: `Seite ${pageNumber} geladen: ${displayUrl(finalUrl)}`,
+    });
+
     const finalHostname = new URL(finalUrl).hostname.toLowerCase();
     allowedHostname ??= finalHostname;
     if (finalHostname !== allowedHostname) {
+      await progress(options, {
+        phase: 'skipped', url: finalUrl, depth: current.depth, pageNumber, maxPages,
+        message: `Fremden Host übersprungen: ${displayUrl(finalUrl)}`,
+      });
       pages.push(skippedPage(current, finalUrl, 'Das Ziel wurde auf einen anderen Host umgeleitet.'));
       continue;
     }
@@ -75,6 +97,10 @@ export async function crawlAccessibilityChecks(
     }
 
     auditedFinalUrls.add(finalUrl);
+    await progress(options, {
+      phase: 'checking', url: finalUrl, depth: current.depth, pageNumber, maxPages,
+      message: `Prüfe Seite ${pageNumber}: ${displayUrl(finalUrl)}`,
+    });
     let result;
     try {
       result = await runAccessibilityChecks(
@@ -82,6 +108,10 @@ export async function crawlAccessibilityChecks(
         { engines: requestedEngines },
       );
     } catch (error) {
+      await progress(options, {
+        phase: 'failed', url: finalUrl, depth: current.depth, pageNumber, maxPages,
+        message: `Prüfung fehlgeschlagen: ${displayUrl(finalUrl)}`,
+      });
       pages.push({
         requestedUrl: current.url,
         url: finalUrl,
@@ -100,6 +130,18 @@ export async function crawlAccessibilityChecks(
       result,
     });
 
+    for (const finding of result.findings) {
+      await progress(options, {
+        phase: 'finding', url: finalUrl, depth: current.depth, pageNumber, maxPages,
+        message: finding.message, finding,
+      });
+    }
+    await progress(options, {
+      phase: 'completed', url: finalUrl, depth: current.depth, pageNumber, maxPages,
+      message: `Seite ${pageNumber} geprüft: ${result.findings.length} Warnsignale.`,
+      findingCount: result.findings.length,
+    });
+
     if (current.depth >= depth) continue;
     for (const url of linkedPageUrls(input.html, finalUrl, allowedHostname)) {
       if (scheduled.has(url) || auditedFinalUrls.has(url)) continue;
@@ -107,6 +149,13 @@ export async function crawlAccessibilityChecks(
       queue.push({ url, depth: current.depth + 1 });
     }
   }
+
+
+  await progress(options, {
+    phase: 'crawl-completed', url: canonicalStartUrl, depth, pageNumber: pages.length, maxPages,
+    message: `${pages.length} Seiten verarbeitet.`,
+    findingCount: pages.reduce((sum, page) => sum + (page.result?.findings.length ?? 0), 0),
+  });
 
   return {
     url: canonicalStartUrl,
@@ -122,6 +171,22 @@ export async function crawlAccessibilityChecks(
       page.result?.findings.map((finding) => ({ ...finding, url: page.url, depth: page.depth })) ?? [],
     ),
   };
+}
+
+async function progress(
+  options: AccessibilityCrawlOptions,
+  event: Parameters<NonNullable<AccessibilityCrawlOptions['onProgress']>>[0],
+): Promise<void> {
+  await options.onProgress?.(event);
+}
+
+function displayUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    return `${url.hostname}${url.pathname === '/' ? '' : url.pathname}`;
+  } catch {
+    return value;
+  }
 }
 
 /** Extrahiert kanonische, zum selben Host gehörende Links aus einem HTML-Dokument. */

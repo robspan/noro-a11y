@@ -60,6 +60,29 @@ export interface AccessibilityCrawlOptions extends AccessibilityRunOptions {
   maxPages?: number;
   /** Lädt ein Ziel und stellt es den bestehenden Prüf-Engines bereit. */
   loadPage: (url: string, depth: number) => Promise<AccessibilityRunInput>;
+  /** Liefert echte Crawl- und Befundereignisse, z. B. für SSE oder Live-UIs. */
+  onProgress?: (event: AccessibilityCrawlProgressEvent) => void | Promise<void>;
+}
+
+export type AccessibilityCrawlProgressPhase =
+  | 'loading'
+  | 'loaded'
+  | 'checking'
+  | 'finding'
+  | 'completed'
+  | 'skipped'
+  | 'failed'
+  | 'crawl-completed';
+
+export interface AccessibilityCrawlProgressEvent {
+  phase: AccessibilityCrawlProgressPhase;
+  url: string;
+  depth: number;
+  pageNumber: number;
+  maxPages: number;
+  message: string;
+  finding?: NormalizedFinding;
+  findingCount?: number;
 }
 
 export interface AccessibilityRunResult {

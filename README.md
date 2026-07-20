@@ -61,6 +61,10 @@ const crawl = await crawlAccessibilityChecks('https://example.org', {
       http: { status: response.status, headers: response.headers },
     };
   },
+  onProgress: (event) => {
+    // Echte Lade-, Seiten- und Befundereignisse; kann z. B. an SSE weitergereicht werden.
+    progressStream.publish(event);
+  },
 });
 ```
 

@@ -102,6 +102,25 @@ test('the crawler defaults to depth one and at most ten loaded targets', async (
   assert.equal(result.truncated, true);
 });
 
+test('the crawler emits page and finding progress for streaming consumers', async () => {
+  const { crawlAccessibilityChecks } = packageApi;
+  const events = [];
+  await crawlAccessibilityChecks('https://example.org', {
+    depth: 0,
+    engines: ['http'],
+    onProgress: (event) => events.push(event),
+    loadPage: async (url) => ({
+      url,
+      html: '<html><title></title></html>',
+      http: { status: 200, headers: { 'content-type': 'text/html' } },
+    }),
+  });
+
+  assert.deepEqual(events.map(({ phase }) => phase).slice(0, 3), ['loading', 'loaded', 'checking']);
+  assert.ok(events.some(({ phase, finding }) => phase === 'finding' && finding));
+  assert.equal(events.at(-1).phase, 'crawl-completed');
+});
+
 test('HTTP and HTML findings are German and retain stable rule IDs', async () => {
   const {
     renderAgentReport,
