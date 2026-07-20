@@ -42,7 +42,8 @@ await runAccessibilityChecks(input, {
 - `renderMarkdownReport`: lesbarer Bericht für Tickets und Dokumentation
 - `renderHtmlReport`: eigenständiger, responsiver HTML-Bericht
 - `renderAgentReport`: priorisierte Aufgaben und Abnahmekriterien für Coding Agents
-- `renderPdfReport`: versandfertiger PDF-Bericht im spanier.one-Erscheinungsbild
+- `renderPdfReport`: getaggter, verlinkter PDF-Bericht im spanier.one-Erscheinungsbild
+- `summarizeAutomatedRisk`: derselbe automatische Befundindex als typisiertes Objekt
 
 ```ts
 import { renderAgentReport, renderPdfReport, renderSarifReport } from '@spanier-one/barrierefreiheit';
@@ -51,6 +52,28 @@ const agentTasks = renderAgentReport(result);
 const sarif = renderSarifReport(result);
 const pdf = await renderPdfReport(result, { preparedFor: 'Beispiel GmbH' });
 ```
+
+### Berichtshierarchie und Befundindex
+
+HTML, Markdown und PDF beginnen mit einer visuellen Einordnung und führen danach
+in den vollständigen technischen Befund. Die Ausgaben verlinken erkennbar auf
+spanier.one, bleiben aber ohne externe Assets eigenständig nutzbar.
+
+Der **automatische Befundindex** liegt zwischen 0 und 100. Er verdichtet ausschließlich
+die in diesem Lauf erzeugten Meldungen: kritisch = 20 Punkte, Warnung = 8 Punkte,
+Hinweis = 2 Punkte. Eine fehlgeschlagene Engine ergänzt 15 Punkte, eine nicht
+ausgeführte Engine 5 Punkte. Der Wert wird bei 100 gedeckelt.
+
+Der Index ist ausdrücklich kein Accessibility-, WCAG- oder Konformitätsscore.
+Auch ein Wert von 0 lässt alle nicht automatisierbaren Prüffragen offen. Die
+Risikobänder werden in den visuellen Berichten deshalb immer mit Klartext,
+Zahlen und nicht nur über Farbe vermittelt.
+
+Das PDF wird aus demselben semantischen HTML mit Chromium erzeugt. Dadurch
+bleiben Überschriften, Listen, Beschreibungslisten, Links und die natürliche
+Lesereihenfolge als PDF-Struktur erhalten. Für die PDF-Ausgabe muss das zu
+Playwright passende Chromium installiert sein, zum Beispiel mit
+`npx playwright install chromium`.
 
 ## Prüf-Engines
 

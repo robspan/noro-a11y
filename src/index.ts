@@ -10,6 +10,7 @@ export {
   renderSarifReport,
 } from './reports.ts';
 export { renderPdfReport } from './pdf.report.ts';
+export { SPANIER_ONE_REPORT_URL, summarizeAutomatedRisk } from './report-summary.ts';
 import type {
   AccessibilityRunInput,
   AccessibilityRunOptions,

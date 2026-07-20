@@ -71,6 +71,23 @@ export interface ReportOptions {
   includeOriginalMessages?: boolean;
 }
 
+export type AutomatedRiskBand = 'none' | 'low' | 'elevated' | 'high' | 'very-high';
+
+export interface AutomatedRiskSummary {
+  /** Verdichtet ausschließlich automatisch erzeugte Befunde; kein Konformitätswert. */
+  index: number;
+  band: AutomatedRiskBand;
+  label: string;
+  statement: string;
+  counts: Record<FindingSeverity, number>;
+  engines: {
+    requested: number;
+    completed: number;
+    failed: number;
+    notRun: number;
+  };
+}
+
 export interface AgentTask {
   id: string;
   priority: 'P0' | 'P1' | 'P2';
