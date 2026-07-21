@@ -212,15 +212,14 @@ test('HTTP image-alt accepts every valid HTML attribute syntax', async () => {
   const missing = await runAccessibilityChecks(
     {
       url: 'https://example.org',
-      html: '<!doctype html><html lang="de"><head><title>Test</title></head><body><img src="missing.svg"></body></html>',
+      html: '<!doctype html><html lang="de"><head><title>Test</title></head><body><img src="one.svg"><img src="two.svg"></body></html>',
       http: { status: 200, headers: { 'content-type': 'text/html' } },
     },
     { engines: ['http'] },
   );
-  assert.equal(
-    missing.findings.some(({ ruleId }) => ruleId === 'html-images-without-alt'),
-    true,
-  );
+  const missingAlt = missing.findings.find(({ ruleId }) => ruleId === 'html-images-without-alt');
+  assert.ok(missingAlt);
+  assert.equal(missingAlt.occurrenceCount, 2);
 });
 
 test('the automated risk index is deterministic and never claims conformance', () => {

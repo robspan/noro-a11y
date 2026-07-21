@@ -20,6 +20,8 @@ export interface NormalizedFinding {
   wcagCriteria?: string[];
   helpUrl?: string;
   selectors?: string[];
+  /** Tatsächliche Zahl betroffener Elemente für dieses Finding. */
+  occurrenceCount: number;
   location?: { line?: number; column?: number };
 }
 

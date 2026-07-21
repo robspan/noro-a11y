@@ -46,6 +46,7 @@ export function normalizedFinding(input: {
   wcagCriteria?: string[];
   helpUrl?: string;
   selectors?: string[];
+  occurrenceCount?: number;
   location?: NormalizedFinding['location'];
 }): NormalizedFinding {
   const message = input.message ?? `Die Prüfengine meldet einen Befund zur Regel „${input.ruleId}“.`;
@@ -60,6 +61,13 @@ export function normalizedFinding(input: {
     ...(input.wcagCriteria?.length ? { wcagCriteria: input.wcagCriteria } : {}),
     ...(input.helpUrl ? { helpUrl: input.helpUrl } : {}),
     ...(input.selectors?.length ? { selectors: input.selectors } : {}),
+    occurrenceCount: positiveOccurrenceCount(input.occurrenceCount),
     ...(input.location ? { location: input.location } : {}),
   };
+}
+
+function positiveOccurrenceCount(value: number | undefined): number {
+  return value !== undefined && Number.isFinite(value) && value >= 1
+    ? Math.trunc(value)
+    : 1;
 }

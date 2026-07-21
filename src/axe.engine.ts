@@ -65,20 +65,20 @@ async function loadGermanAxeLocale(): Promise<{ rules: Record<string, { help?: s
 function axeFinding(item: Result, incomplete: boolean, germanRules: Record<string, { help?: string }>) {
   const count = item.nodes.length;
   const translatedHelp = germanRules[item.id]?.help;
-  const prefix = incomplete
-    ? 'Manuelle Prüfung erforderlich'
-    : translatedHelp ?? `Axe meldet einen Verstoß gegen die Regel „${item.id}“`;
+  const prefix = translatedHelp ?? `Axe meldet einen Befund zur Regel „${item.id}“`;
   const normalizedPrefix = prefix.replace(/[.:;!?]+$/u, '');
+  const reviewSuffix = incomplete ? ' – manuell prüfen' : '';
   return normalizedFinding({
     engine: 'axe',
     ruleId: `${incomplete ? 'manual-review' : 'violation'}-${item.id}`,
     severity: incomplete ? 'warning' : severityForImpact(item.impact),
-    message: `${normalizedPrefix}: ${count} betroffene${count === 1 ? 's Element' : ' Elemente'}.`,
-    translationStatus: incomplete || translatedHelp ? 'engine-locale' : 'fallback',
+    message: `${normalizedPrefix}${reviewSuffix}: ${count} betroffene${count === 1 ? 's Element' : ' Elemente'}.`,
+    translationStatus: translatedHelp ? 'engine-locale' : 'fallback',
     originalMessage: `${item.help}: ${item.description}`,
     wcagCriteria: wcagCriteria(item.tags),
     helpUrl: item.helpUrl,
     selectors: item.nodes.slice(0, 5).map(({ target }) => target.flat().join(' > ')),
+    occurrenceCount: count,
   });
 }
 

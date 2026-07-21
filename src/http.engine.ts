@@ -36,7 +36,13 @@ export async function runHttpEngine(input: AccessibilityRunInput): Promise<Engin
   const images = input.html.match(/<img\b[^>]*>/gi) ?? [];
   const missingAlt = images.filter((image) => !hasAltAttribute(image)).length;
   if (missingAlt > 0) {
-    findings.push(httpFinding('html-images-without-alt', 'critical', `${missingAlt} Bildelement${missingAlt === 1 ? '' : 'e'} ohne alt-Attribut gefunden.`, ['1.1.1']));
+    findings.push(httpFinding(
+      'html-images-without-alt',
+      'critical',
+      `${missingAlt} Bildelement${missingAlt === 1 ? '' : 'e'} ohne alt-Attribut gefunden.`,
+      ['1.1.1'],
+      missingAlt,
+    ));
     criterionResults.push(criterion('1.1.1', 'failed', 'http.image-alt'));
   }
 
@@ -62,13 +68,20 @@ function hasAltAttribute(image: string): boolean {
   return /\balt(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?(?=\s|\/?>)/i.test(image);
 }
 
-function httpFinding(ruleId: string, severity: NormalizedFinding['severity'], message: string, wcagCriteria?: string[]): NormalizedFinding {
+function httpFinding(
+  ruleId: string,
+  severity: NormalizedFinding['severity'],
+  message: string,
+  wcagCriteria?: string[],
+  occurrenceCount = 1,
+): NormalizedFinding {
   return normalizedFinding({
     engine: 'http',
     ruleId,
     severity,
     message,
     wcagCriteria,
+    occurrenceCount,
   });
 }
 
