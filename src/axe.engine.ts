@@ -51,6 +51,13 @@ export async function runAxeEngine(input: AccessibilityRunInput): Promise<Engine
     page: input.page,
     axeSource: runtimeIsPreloaded ? 'void 0' : localizedAxeSource,
   })
+    .options({
+      // Full node detail is only consumed for findings and manual review.
+      // Axe still returns every passing rule with one representative node,
+      // which preserves criterion outcomes while avoiding selector generation
+      // for thousands of passing nodes.
+      resultTypes: ['violations', 'incomplete'],
+    })
     .withTags(AXE_TAGS)
     .analyze();
   const violations = results.violations.map((item) => axeFinding(item, false, germanRules));
