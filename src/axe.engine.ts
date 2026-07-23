@@ -16,6 +16,10 @@ const LOCALIZED_AXE_RUNTIME = loadGermanAxeLocale().then((locale) => ({
   source: `${axe.source}\naxe.configure({ locale: ${JSON.stringify(locale)} });`,
 }));
 
+export async function axeRuntimeSource(): Promise<string> {
+  return (await LOCALIZED_AXE_RUNTIME).source;
+}
+
 export async function runAxeEngine(input: AccessibilityRunInput): Promise<EngineResult> {
   if (!input.page) {
     return {
@@ -29,8 +33,24 @@ export async function runAxeEngine(input: AccessibilityRunInput): Promise<Engine
 
   const { locale: deLocale, source: localizedAxeSource } =
     await LOCALIZED_AXE_RUNTIME;
+  const runtimeIsPreloaded = await input.page
+    .evaluate((expectedVersion) => {
+      const runtime = (
+        window as typeof window & {
+          axe?: { version?: string; runPartial?: unknown };
+        }
+      ).axe;
+      return (
+        runtime?.version === expectedVersion &&
+        typeof runtime.runPartial === 'function'
+      );
+    }, axe.version)
+    .catch(() => false);
   const germanRules = deLocale.rules as Record<string, { help?: string }>;
-  const results = await new AxeBuilder({ page: input.page, axeSource: localizedAxeSource })
+  const results = await new AxeBuilder({
+    page: input.page,
+    axeSource: runtimeIsPreloaded ? 'void 0' : localizedAxeSource,
+  })
     .withTags(AXE_TAGS)
     .analyze();
   const violations = results.violations.map((item) => axeFinding(item, false, germanRules));
