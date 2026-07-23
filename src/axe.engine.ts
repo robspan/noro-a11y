@@ -11,6 +11,10 @@ import type {
 } from './types.ts';
 
 const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+const LOCALIZED_AXE_RUNTIME = loadGermanAxeLocale().then((locale) => ({
+  locale,
+  source: `${axe.source}\naxe.configure({ locale: ${JSON.stringify(locale)} });`,
+}));
 
 export async function runAxeEngine(input: AccessibilityRunInput): Promise<EngineResult> {
   if (!input.page) {
@@ -23,8 +27,8 @@ export async function runAxeEngine(input: AccessibilityRunInput): Promise<Engine
     };
   }
 
-  const deLocale = await loadGermanAxeLocale();
-  const localizedAxeSource = `${axe.source}\naxe.configure({ locale: ${JSON.stringify(deLocale)} });`;
+  const { locale: deLocale, source: localizedAxeSource } =
+    await LOCALIZED_AXE_RUNTIME;
   const germanRules = deLocale.rules as Record<string, { help?: string }>;
   const results = await new AxeBuilder({ page: input.page, axeSource: localizedAxeSource })
     .withTags(AXE_TAGS)
