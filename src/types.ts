@@ -1,6 +1,6 @@
 import type { Page } from 'playwright';
 
-export const ENGINE_IDS = ['http', 'html-validate', 'axe'] as const;
+export const ENGINE_IDS = ['http', 'html-validate', 'axe', 'ibm'] as const;
 
 export type EngineId = (typeof ENGINE_IDS)[number];
 export type EngineSelection = 'all' | EngineId | readonly EngineId[];
@@ -8,6 +8,13 @@ export type CheckStatus = 'completed' | 'not_run' | 'failed';
 export type FindingSeverity = 'info' | 'warning' | 'critical';
 export type TranslationStatus = 'verified' | 'engine-locale' | 'fallback';
 export type AutomatedCriterionOutcome = 'passed' | 'failed' | 'needs-review';
+
+export interface FindingSource {
+  engine: EngineId;
+  ruleId: string;
+  code: string;
+  occurrenceCount: number;
+}
 
 export interface NormalizedFinding {
   code: string;
@@ -22,6 +29,8 @@ export interface NormalizedFinding {
   selectors?: string[];
   /** Tatsächliche Zahl betroffener Elemente für dieses Finding. */
   occurrenceCount: number;
+  /** Alle Engine-Regeln, die nach der Deduplizierung zu diesem Befund beitragen. */
+  sources: FindingSource[];
   location?: { line?: number; column?: number };
 }
 
@@ -94,6 +103,11 @@ export interface AccessibilityRunResult {
   startedAt: string;
   completedAt: string;
   results: EngineResult[];
+  deduplication: {
+    rawFindings: number;
+    findings: number;
+    collapsed: number;
+  };
   findings: NormalizedFinding[];
 }
 
@@ -156,6 +170,7 @@ export interface AgentTask {
   priority: 'P0' | 'P1' | 'P2';
   ruleId: string;
   engine: EngineId;
+  sources: FindingSource[];
   problem: string;
   selectors: string[];
   wcagCriteria: string[];

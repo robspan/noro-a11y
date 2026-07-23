@@ -1,6 +1,8 @@
 import { runAxeEngine } from './axe.engine.ts';
+import { deduplicateFindings } from './finding-deduplication.ts';
 import { runHtmlValidateEngine } from './html-validate.engine.ts';
 import { runHttpEngine } from './http.engine.ts';
+import { runIbmEngine } from './ibm.engine.ts';
 import { ENGINE_IDS } from './types.ts';
 import type {
   AccessibilityRunInput,
@@ -14,6 +16,7 @@ const RUNNERS = {
   http: runHttpEngine,
   'html-validate': runHtmlValidateEngine,
   axe: runAxeEngine,
+  ibm: runIbmEngine,
 } satisfies Record<EngineId, (input: AccessibilityRunInput) => Promise<AccessibilityRunResult['results'][number]>>;
 
 /** Führt die gewählten Prüf-Engines aus und vereinheitlicht ihre Befunde auf Deutsch. */
@@ -24,6 +27,8 @@ export async function runAccessibilityChecks(
   const requestedEngines = resolveEngines(options.engines ?? 'all');
   const startedAt = new Date().toISOString();
   const results = await Promise.all(requestedEngines.map((engine) => RUNNERS[engine](input)));
+  const rawFindings = results.flatMap((result) => result.findings);
+  const findings = deduplicateFindings(rawFindings);
   return {
     url: input.url,
     locale: 'de',
@@ -31,7 +36,12 @@ export async function runAccessibilityChecks(
     startedAt,
     completedAt: new Date().toISOString(),
     results,
-    findings: results.flatMap((result) => result.findings),
+    deduplication: {
+      rawFindings: rawFindings.length,
+      findings: findings.length,
+      collapsed: rawFindings.length - findings.length,
+    },
+    findings,
   };
 }
 

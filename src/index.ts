@@ -12,4 +12,6 @@ export { crawlAccessibilityChecks, linkedPageUrls } from './crawl.ts';
 export * from './types.ts';
 export { HTML_VALIDATE_MESSAGES, HTML_VALIDATE_RULES } from './catalog.ts';
 export { axeRuntimeSource } from './axe.engine.ts';
+export { deduplicateFindings } from './finding-deduplication.ts';
+export { ibmRuntimeSource } from './ibm.engine.ts';
 export { resolveEngines, runAccessibilityChecks } from './run.ts';

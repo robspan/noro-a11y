@@ -190,6 +190,55 @@ test('HTTP and HTML findings are German and retain stable rule IDs', async () =>
   assert.match(pdfStructure, /\/URI \(https:\/\/spanier\.one\//);
 });
 
+test('IBM Equal Access runs in Playwright and the analysis bundle deduplicates engine overlap', async () => {
+  const { chromium } = await import('playwright');
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const html = '<!doctype html><html><head><title></title></head><body><main><img src="x"><input></main></body></html>';
+    await page.setContent(html);
+    const result = await packageApi.runAccessibilityChecks(
+      {
+        url: 'https://example.org',
+        html,
+        http: { status: 200, headers: { 'content-type': 'text/html' } },
+        page,
+      },
+      { engines: 'all' },
+    );
+
+    assert.deepEqual(result.requestedEngines, ['http', 'html-validate', 'axe', 'ibm']);
+    assert.equal(
+      result.results.find(({ engine }) => engine === 'ibm')?.status,
+      'completed',
+    );
+    const imageAlt = result.findings.find(({ sources }) =>
+      sources.some(({ code }) => code === 'ibm.violation-img_alt_valid'),
+    );
+    assert.ok(imageAlt);
+    assert.deepEqual(
+      imageAlt.sources.map(({ engine }) => engine),
+      ['axe', 'html-validate', 'http', 'ibm'],
+    );
+    assert.ok(result.deduplication.rawFindings > result.deduplication.findings);
+    assert.equal(
+      result.deduplication.collapsed,
+      result.deduplication.rawFindings - result.deduplication.findings,
+    );
+    const bundle = JSON.parse(packageApi.renderJsonReport(result));
+    assert.equal(bundle.deduplication.collapsed, result.deduplication.collapsed);
+    assert.ok(
+      bundle.findings.some(({ sources }) =>
+        sources.some(({ engine }) => engine === 'ibm'),
+      ),
+    );
+    await context.close();
+  } finally {
+    await browser.close();
+  }
+});
+
 test('HTTP image-alt accepts every valid HTML attribute syntax', async () => {
   const { runAccessibilityChecks } = packageApi;
   for (const image of ['<img src="decorative.svg" alt>', '<img src="decorative.svg" alt="">', '<img src="logo.svg" alt="Beispiel GmbH">', '<img src="logo.svg" alt=Beispiel>']) {

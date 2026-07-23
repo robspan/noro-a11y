@@ -2,6 +2,7 @@ import type {
   AccessibilityRunResult,
   AgentReport,
   AgentTask,
+  FindingSource,
   NormalizedFinding,
   ReportOptions,
 } from './types.ts';
@@ -21,7 +22,10 @@ export function renderSarifReport(result: AccessibilityRunResult): Record<string
       name: finding.ruleId,
       shortDescription: { text: finding.message },
       helpUri: finding.helpUrl,
-      properties: { tags: finding.wcagCriteria?.map((criterion) => `wcag/${criterion}`) ?? [] },
+      properties: {
+        tags: finding.wcagCriteria?.map((criterion) => `wcag/${criterion}`) ?? [],
+        sources: findingSources(finding).map(({ engine, ruleId }) => `${engine}/${ruleId}`),
+      },
     },
   ])).values()];
 
@@ -78,6 +82,7 @@ export function renderMarkdownReport(result: AccessibilityRunResult, options: Re
       finding.message,
       '',
       `- Regel: \`${finding.engine}/${finding.ruleId}\``,
+      `- Quellen: ${findingSources(finding).map((source) => `\`${source.engine}/${source.ruleId}\``).join(', ')}`,
       `- WCAG: ${finding.wcagCriteria?.join(', ') || 'nicht automatisch zugeordnet'}`,
       `- Elemente: ${finding.selectors?.map((value) => `\`${value}\``).join(', ') || 'seitenweit'}`,
     );
@@ -184,6 +189,7 @@ function toAgentTask(finding: NormalizedFinding, index: number): AgentTask {
     priority: finding.severity === 'critical' ? 'P0' : finding.severity === 'warning' ? 'P1' : 'P2',
     ruleId: finding.ruleId,
     engine: finding.engine,
+    sources: findingSources(finding),
     problem: finding.message,
     selectors: finding.selectors ?? [],
     wcagCriteria: finding.wcagCriteria ?? [],
@@ -207,7 +213,7 @@ function renderFindingHtml(finding: NormalizedFinding, index: number, includeOri
       <header class="finding-head"><span class="severity"><b aria-hidden="true">${severityMark}</b>${escapeHtml(severityLabel(finding.severity))}</span><code>${escapeHtml(finding.code)}</code></header>
       <h3>${bookmarkHeadingHtml(finding.message)}</h3>
       <dl class="finding-meta">
-        <div><dt>Engine / Regel</dt><dd><code>${escapeHtml(`${finding.engine}/${finding.ruleId}`)}</code></dd></div>
+        <div><dt>Engines / Regeln</dt><dd>${findingSources(finding).map((source) => `<code>${escapeHtml(`${source.engine}/${source.ruleId}`)}</code>`).join('<br>')}</dd></div>
         <div><dt>WCAG-Bezug</dt><dd>${escapeHtml(finding.wcagCriteria?.join(', ') || 'Nicht automatisch zugeordnet')}</dd></div>
         <div><dt>Fundstellen</dt><dd>${selectors}</dd></div>
       </dl>
@@ -241,6 +247,17 @@ function checkStatusLabel(status: AccessibilityRunResult['results'][number]['sta
 function sortedFindings(findings: NormalizedFinding[]): NormalizedFinding[] {
   const order = { critical: 0, warning: 1, info: 2 } as const;
   return [...findings].sort((a, b) => order[a.severity] - order[b.severity] || a.code.localeCompare(b.code));
+}
+
+function findingSources(finding: NormalizedFinding): FindingSource[] {
+  return finding.sources?.length
+    ? finding.sources
+    : [{
+        engine: finding.engine,
+        ruleId: finding.ruleId,
+        code: finding.code,
+        occurrenceCount: finding.occurrenceCount ?? 1,
+      }];
 }
 
 function sarifLevel(severity: NormalizedFinding['severity']): 'error' | 'warning' | 'note' {

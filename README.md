@@ -31,7 +31,7 @@ Nur bestimmte Prüfungen ausführen:
 
 ```ts
 await runAccessibilityChecks(input, {
-  engines: ['axe', 'html-validate'],
+  engines: ['axe', 'ibm', 'html-validate'],
 });
 ```
 
@@ -111,11 +111,18 @@ Playwright passende Chromium installiert sein, zum Beispiel mit
 ## Prüf-Engines
 
 - `axe`: WCAG-orientierte DOM-Prüfungen mit der deutschen Sprache von axe-core
+- `ibm`: IBM Equal Access Accessibility Checker mit dem IBM-Accessibility-Regelwerk
 - `html-validate`: deterministische Regeln für HTML-Struktur und Barrierefreiheit
 - `http`: spanier.one-Prüfungen für die HTML-Antwort und das rohe HTML-Dokument
 
 `all` führt alle Engines aus `ENGINE_IDS` aus. Unbekannte Engine-Namen werden
 mit einem Fehler abgelehnt, nicht stillschweigend ignoriert.
+
+Die berichtsfähige Top-Level-Liste `findings` führt gleichwertige Meldungen
+mehrerer Engines zusammen. `sources` nennt weiterhin jede beitragende Engine
+und Regel. Die unveränderten Einzelmeldungen bleiben unter `results` für die
+Diagnose erhalten; `deduplication` weist Rohzahl, Ergebniszahl und die Zahl der
+zusammengeführten Meldungen aus.
 
 ## Installation über JSR
 

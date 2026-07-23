@@ -62,6 +62,12 @@ export function normalizedFinding(input: {
     ...(input.helpUrl ? { helpUrl: input.helpUrl } : {}),
     ...(input.selectors?.length ? { selectors: input.selectors } : {}),
     occurrenceCount: positiveOccurrenceCount(input.occurrenceCount),
+    sources: [{
+      engine: input.engine,
+      ruleId: input.ruleId,
+      code: `${input.engine}.${input.ruleId}`,
+      occurrenceCount: positiveOccurrenceCount(input.occurrenceCount),
+    }],
     ...(input.location ? { location: input.location } : {}),
   };
 }

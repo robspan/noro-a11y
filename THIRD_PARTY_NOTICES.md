@@ -4,6 +4,7 @@ The original wrapper and normalization code in this package is offered under
 CC0-1.0. Its dependencies retain their own licenses:
 
 - `axe-core` and `@axe-core/playwright`: MPL-2.0
+- `accessibility-checker-engine` (IBM Equal Access): Apache-2.0
 - `html-validate`: MIT
 - `playwright`: Apache-2.0
 
