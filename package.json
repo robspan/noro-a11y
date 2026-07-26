@@ -21,8 +21,6 @@
     "test:jsr": "jsr publish --dry-run"
   },
   "dependencies": {
-    "@axe-core/playwright": "^4.12.1",
-    "accessibility-checker-engine": "^4.0.29",
     "axe-core": "^4.12.1",
     "html-validate": "^10.17.0"
   },

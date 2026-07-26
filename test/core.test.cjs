@@ -190,7 +190,7 @@ test('HTTP and HTML findings are German and retain stable rule IDs', async () =>
   assert.match(pdfStructure, /\/URI \(https:\/\/spanier\.one\//);
 });
 
-test('IBM Equal Access runs in Playwright and the analysis bundle deduplicates engine overlap', async () => {
+test('Axe runs in Playwright and the analysis bundle deduplicates checker overlap', async () => {
   const { chromium } = await import('playwright');
   const browser = await chromium.launch({ headless: true });
   try {
@@ -208,18 +208,15 @@ test('IBM Equal Access runs in Playwright and the analysis bundle deduplicates e
       { engines: 'all' },
     );
 
-    assert.deepEqual(result.requestedEngines, ['http', 'html-validate', 'axe', 'ibm']);
-    assert.equal(
-      result.results.find(({ engine }) => engine === 'ibm')?.status,
-      'completed',
-    );
+    assert.deepEqual(result.requestedEngines, ['http', 'html-validate', 'axe']);
+    assert.equal(result.results.find(({ engine }) => engine === 'axe')?.status, 'completed');
     const imageAlt = result.findings.find(({ sources }) =>
-      sources.some(({ code }) => code === 'ibm.violation-img_alt_valid'),
+      sources.some(({ code }) => code === 'axe.violation-image-alt'),
     );
     assert.ok(imageAlt);
     assert.deepEqual(
       imageAlt.sources.map(({ engine }) => engine),
-      ['axe', 'html-validate', 'http', 'ibm'],
+      ['axe', 'html-validate', 'http'],
     );
     assert.ok(result.deduplication.rawFindings > result.deduplication.findings);
     assert.equal(
@@ -230,7 +227,7 @@ test('IBM Equal Access runs in Playwright and the analysis bundle deduplicates e
     assert.equal(bundle.deduplication.collapsed, result.deduplication.collapsed);
     assert.ok(
       bundle.findings.some(({ sources }) =>
-        sources.some(({ engine }) => engine === 'ibm'),
+        sources.some(({ engine }) => engine === 'axe'),
       ),
     );
     await context.close();
@@ -317,12 +314,13 @@ test('the automated risk index is deterministic and never claims conformance', (
 });
 
 test('the branded HTML report has no automated WCAG A or AA violations in any risk band', async () => {
-  const { AxeBuilder } = await import('@axe-core/playwright');
   const { chromium } = await import('playwright');
+  const tags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
   const severities = [[], ['info'], ['critical', 'critical'], ['critical', 'critical', 'critical'], ['critical', 'critical', 'critical', 'critical']];
   const browser = await chromium.launch({ headless: true });
   try {
     const context = await browser.newContext();
+    await context.addInitScript(await packageApi.axeRuntimeSource());
     for (const [scenario, findings] of severities.entries()) {
       const page = await context.newPage();
       const result = accessibilityResult(
@@ -338,7 +336,15 @@ test('the branded HTML report has no automated WCAG A or AA violations in any ri
         })),
       );
       await page.setContent(packageApi.renderHtmlReport(result));
-      const scan = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
+      const scan = await page.evaluate(
+        async (values) =>
+          window.axe.run(document, {
+            runOnly: { type: 'tag', values },
+            resultTypes: ['violations'],
+            iframes: false,
+          }),
+        tags,
+      );
       assert.deepEqual(
         scan.violations.map(({ id }) => id),
         [],

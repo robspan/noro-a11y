@@ -1,6 +1,5 @@
-import { AxeBuilder } from '@axe-core/playwright';
 import axe from 'axe-core';
-import type { Result } from 'axe-core';
+import type { AxeResults, Result, RunOptions } from 'axe-core';
 import { normalizedFinding } from './catalog.ts';
 import type {
   AccessibilityRunInput,
@@ -11,6 +10,16 @@ import type {
 } from './types.ts';
 
 const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+const AXE_RUN_OPTIONS: RunOptions = {
+  runOnly: {
+    type: 'tag',
+    values: AXE_TAGS,
+  },
+  resultTypes: ['violations', 'incomplete'],
+  // The screening evaluates the containing document. Embedded documents are
+  // separate audit targets and are called out explicitly as a limitation.
+  iframes: false,
+};
 const LOCALIZED_AXE_RUNTIME = loadGermanAxeLocale().then((locale) => ({
   locale,
   source: `${axe.source}\naxe.configure({ locale: ${JSON.stringify(locale)} });`,
@@ -46,20 +55,27 @@ export async function runAxeEngine(input: AccessibilityRunInput): Promise<Engine
       );
     }, axe.version)
     .catch(() => false);
+  if (!runtimeIsPreloaded) {
+    await input.page.evaluate(localizedAxeSource);
+  }
   const germanRules = deLocale.rules as Record<string, { help?: string }>;
-  const results = await new AxeBuilder({
-    page: input.page,
-    axeSource: runtimeIsPreloaded ? 'void 0' : localizedAxeSource,
-  })
-    .options({
-      // Full node detail is only consumed for findings and manual review.
-      // Axe still returns every passing rule with one representative node,
-      // which preserves criterion outcomes while avoiding selector generation
-      // for thousands of passing nodes.
-      resultTypes: ['violations', 'incomplete'],
-    })
-    .withTags(AXE_TAGS)
-    .analyze();
+  const results = await input.page.evaluate(
+    async (options): Promise<AxeResults> => {
+      const runtime = (
+        window as typeof window & {
+          axe?: {
+            run(
+              context: Document,
+              runOptions: RunOptions,
+            ): Promise<AxeResults>;
+          };
+        }
+      ).axe;
+      if (!runtime) throw new Error('axe-core runtime is unavailable.');
+      return runtime.run(document, options);
+    },
+    AXE_RUN_OPTIONS,
+  );
   const violations = results.violations.map((item) => axeFinding(item, false, germanRules));
   const manualReview = results.incomplete.map((item) => axeFinding(item, true, germanRules));
 
@@ -82,7 +98,8 @@ export async function runAxeEngine(input: AccessibilityRunInput): Promise<Engine
     },
     limitations: [
       'Axe deckt ausschließlich automatisierbare Teilprüfungen ab.',
-      'Tastatur, Screenreader, Zoom, Inhalte und vollständige Nutzerwege benötigen eine manuelle Prüfung.',
+      'Geprüft wird der sichtbare Dokumentzustand; eingebettete Dokumente, geschlossene Bedienelemente und weitere Interaktionszustände werden nicht automatisch vertieft.',
+      'Tastatur, Screenreader, Zoom, Inhalte und vollständige Nutzerwege benötigen eine professionelle manuelle Prüfung.',
       'Ein fehlerfreier Axe-Lauf ist kein Konformitätsnachweis.',
     ],
   };

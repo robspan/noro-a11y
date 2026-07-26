@@ -18,7 +18,6 @@ const FINDING_FAMILIES: FindingFamily[] = [
       'http.html-images-without-alt',
       'axe.violation-image-alt',
       'html-validate.wcag/h37',
-      'ibm.violation-img_alt_valid',
     ].includes(code),
     message: (count) =>
       `${count} Bildelement${count === 1 ? '' : 'e'} ohne geeigneten Alternativtext gefunden.`,
@@ -28,7 +27,6 @@ const FINDING_FAMILIES: FindingFamily[] = [
     matches: (code) => [
       'http.html-missing-lang',
       'axe.violation-html-has-lang',
-      'ibm.violation-html_lang_exists',
     ].includes(code),
     message: () => 'Am HTML-Element fehlt eine gültige Seitensprache.',
   },
@@ -38,7 +36,6 @@ const FINDING_FAMILIES: FindingFamily[] = [
       'http.html-missing-title',
       'axe.violation-document-title',
       'html-validate.empty-title',
-      'ibm.violation-page_title_exists',
     ].includes(code),
     message: () => 'Das Dokument besitzt keinen aussagekräftigen Titel.',
   },
@@ -47,7 +44,6 @@ const FINDING_FAMILIES: FindingFamily[] = [
     matches: (code) => [
       'html-validate.input-missing-label',
       'axe.violation-label',
-      'ibm.violation-input_label_exists',
     ].includes(code),
     message: (count) =>
       `${count} Formularfeld${count === 1 ? ' besitzt' : 'er besitzen'} keine programmatisch zugeordnete Beschriftung.`,
@@ -57,7 +53,6 @@ const FINDING_FAMILIES: FindingFamily[] = [
     matches: (code) => [
       'html-validate.hidden-focusable',
       'axe.violation-aria-hidden-focus',
-      'ibm.violation-aria_hidden_nontabbable',
     ].includes(code),
     message: (count) =>
       `${count} fokussierbare${count === 1 ? 's Element ist' : ' Elemente sind'} vor assistiver Technik verborgen.`,
@@ -67,7 +62,6 @@ const FINDING_FAMILIES: FindingFamily[] = [
     matches: (code) => [
       'html-validate.unique-landmark',
       'axe.violation-landmark-unique',
-      'ibm.violation-aria_landmark_name_unique',
     ].includes(code),
     message: () => 'Mehrere gleichartige Orientierungspunkte benötigen eindeutige Namen.',
   },
@@ -76,7 +70,6 @@ const FINDING_FAMILIES: FindingFamily[] = [
     matches: (code) => [
       'html-validate.wcag/h30',
       'axe.violation-link-name',
-      'ibm.violation-a_text_purpose',
     ].includes(code),
     message: (count) =>
       `${count} Link${count === 1 ? ' benötigt' : 's benötigen'} einen verständlichen zugänglichen Namen.`,

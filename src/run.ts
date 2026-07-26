@@ -2,7 +2,6 @@ import { runAxeEngine } from './axe.engine.ts';
 import { deduplicateFindings } from './finding-deduplication.ts';
 import { runHtmlValidateEngine } from './html-validate.engine.ts';
 import { runHttpEngine } from './http.engine.ts';
-import { runIbmEngine } from './ibm.engine.ts';
 import { ENGINE_IDS } from './types.ts';
 import type {
   AccessibilityRunInput,
@@ -16,7 +15,6 @@ const RUNNERS = {
   http: runHttpEngine,
   'html-validate': runHtmlValidateEngine,
   axe: runAxeEngine,
-  ibm: runIbmEngine,
 } satisfies Record<EngineId, (input: AccessibilityRunInput) => Promise<AccessibilityRunResult['results'][number]>>;
 
 /** Führt die gewählten Prüf-Engines aus und vereinheitlicht ihre Befunde auf Deutsch. */

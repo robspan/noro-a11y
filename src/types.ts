@@ -1,6 +1,6 @@
 import type { Page } from 'playwright';
 
-export const ENGINE_IDS = ['http', 'html-validate', 'axe', 'ibm'] as const;
+export const ENGINE_IDS = ['http', 'html-validate', 'axe'] as const;
 
 export type EngineId = (typeof ENGINE_IDS)[number];
 export type EngineSelection = 'all' | EngineId | readonly EngineId[];
