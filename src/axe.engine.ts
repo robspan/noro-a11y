@@ -100,7 +100,8 @@ export async function runAxeEngine(input: AccessibilityRunInput): Promise<Engine
       ruleEvaluations:
         results.passes.length +
         results.incomplete.length +
-        results.violations.length,
+        results.violations.length +
+        results.inapplicable.length,
       rulesWithoutFindings: results.passes.length,
       rulesWithoutRelevantContent: results.inapplicable.length,
       rulesWithViolations: violations.length,

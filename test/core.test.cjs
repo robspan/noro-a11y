@@ -245,7 +245,7 @@ test('axe metadata is derived from every returned runtime bucket', async () => {
   );
   assert.equal(axeResult.metadata.axeVersion, 'fixture-runtime-9.9.9');
   assert.equal(axeResult.metadata.rulesConfigured, 10);
-  assert.equal(axeResult.metadata.ruleEvaluations, 6);
+  assert.equal(axeResult.metadata.ruleEvaluations, 10);
   assert.equal(axeResult.metadata.rulesWithoutFindings, 1);
   assert.equal(axeResult.metadata.rulesNeedingManualReview, 2);
   assert.equal(axeResult.metadata.rulesWithViolations, 3);
@@ -299,14 +299,14 @@ test('axe runs in Playwright as the sole automated accessibility engine', async 
     assert.ok(axeResult.metadata.rulesConfigured > 0);
     assert.equal(
       axeResult.metadata.rulesConfigured,
-      axeResult.metadata.ruleEvaluations +
-        axeResult.metadata.rulesWithoutRelevantContent,
+      axeResult.metadata.ruleEvaluations,
     );
     assert.equal(
       axeResult.metadata.ruleEvaluations,
       axeResult.metadata.rulesWithoutFindings +
         axeResult.metadata.rulesNeedingManualReview +
-        axeResult.metadata.rulesWithViolations,
+        axeResult.metadata.rulesWithViolations +
+        axeResult.metadata.rulesWithoutRelevantContent,
     );
     const imageAlt = result.findings.find(({ sources }) =>
       sources.some(({ code }) => code === 'axe.violation-image-alt'),
