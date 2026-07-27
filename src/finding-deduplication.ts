@@ -14,63 +14,40 @@ interface FindingFamily {
 const FINDING_FAMILIES: FindingFamily[] = [
   {
     key: 'image-alt',
-    matches: (code) => [
-      'http.html-images-without-alt',
-      'axe.violation-image-alt',
-      'html-validate.wcag/h37',
-    ].includes(code),
+    matches: (code) => code === 'axe.violation-image-alt',
     message: (count) =>
       `${count} Bildelement${count === 1 ? '' : 'e'} ohne geeigneten Alternativtext gefunden.`,
   },
   {
     key: 'page-language',
-    matches: (code) => [
-      'http.html-missing-lang',
-      'axe.violation-html-has-lang',
-    ].includes(code),
+    matches: (code) => code === 'axe.violation-html-has-lang',
     message: () => 'Am HTML-Element fehlt eine gültige Seitensprache.',
   },
   {
     key: 'document-title',
-    matches: (code) => [
-      'http.html-missing-title',
-      'axe.violation-document-title',
-      'html-validate.empty-title',
-    ].includes(code),
+    matches: (code) => code === 'axe.violation-document-title',
     message: () => 'Das Dokument besitzt keinen aussagekräftigen Titel.',
   },
   {
     key: 'form-label',
-    matches: (code) => [
-      'html-validate.input-missing-label',
-      'axe.violation-label',
-    ].includes(code),
+    matches: (code) => code === 'axe.violation-label',
     message: (count) =>
       `${count} Formularfeld${count === 1 ? ' besitzt' : 'er besitzen'} keine programmatisch zugeordnete Beschriftung.`,
   },
   {
     key: 'hidden-focusable',
-    matches: (code) => [
-      'html-validate.hidden-focusable',
-      'axe.violation-aria-hidden-focus',
-    ].includes(code),
+    matches: (code) => code === 'axe.violation-aria-hidden-focus',
     message: (count) =>
       `${count} fokussierbare${count === 1 ? 's Element ist' : ' Elemente sind'} vor assistiver Technik verborgen.`,
   },
   {
     key: 'unique-landmark',
-    matches: (code) => [
-      'html-validate.unique-landmark',
-      'axe.violation-landmark-unique',
-    ].includes(code),
+    matches: (code) => code === 'axe.violation-landmark-unique',
     message: () => 'Mehrere gleichartige Orientierungspunkte benötigen eindeutige Namen.',
   },
   {
     key: 'link-name',
-    matches: (code) => [
-      'html-validate.wcag/h30',
-      'axe.violation-link-name',
-    ].includes(code),
+    matches: (code) => code === 'axe.violation-link-name',
     message: (count) =>
       `${count} Link${count === 1 ? ' benötigt' : 's benötigen'} einen verständlichen zugänglichen Namen.`,
   },

@@ -4,10 +4,9 @@
 [![Check](https://github.com/robspan/noro-a11y/actions/workflows/check.yml/badge.svg)](https://github.com/robspan/noro-a11y/actions/workflows/check.yml)
 [![Lizenz: CC0-1.0](https://img.shields.io/badge/Lizenz-CC0--1.0-2454eb)](./LICENSE)
 
-Typisierte Orchestrierung für wiederholbare Barrierefreiheitsprüfungen. Das
-Paket führt ausgewählte Engines aus, normalisiert ihre Ergebnisse und liefert
-öffentliche Befundtexte auf Deutsch. Ursprüngliche Toolmeldungen bleiben nur
-als diagnostische Metadaten erhalten.
+Typisierte Orchestrierung für wiederholbare axe-core-Prüfungen. Das Paket
+normalisiert axe-Ergebnisse und liefert öffentliche Befundtexte auf Deutsch.
+Ursprüngliche Toolmeldungen bleiben nur als diagnostische Metadaten erhalten.
 
 Veröffentlichung: ausschließlich über JSR als `jsr:@spanier-one/barrierefreiheit`. Die lokale
 `package.json` ist als privat markiert und verhindert eine versehentliche
@@ -20,20 +19,15 @@ const result = await runAccessibilityChecks(
   {
     url: 'https://example.org',
     html,
-    http: { status: 200, headers },
     page,
   },
-  { engines: 'all' },
 );
 ```
 
-Nur bestimmte Prüfungen ausführen:
-
-```ts
-await runAccessibilityChecks(input, {
-  engines: ['axe', 'html-validate'],
-});
-```
+axe-core ist die einzige automatisierte Accessibility-Engine. HTML-Parsing,
+HTTP-Status, Content-Type, Redirects, Authentifizierung und Browser-Sicherheit
+bleiben Aufgabe der aufrufenden Scanner-Infrastruktur und erzeugen keine
+Accessibility-Befunde.
 
 ## Verlinkte Seiten prüfen
 
@@ -52,13 +46,14 @@ import { crawlAccessibilityChecks } from '@spanier-one/barrierefreiheit';
 const crawl = await crawlAccessibilityChecks('https://example.org', {
   depth: 2,
   maxPages: 30,
-  engines: ['http', 'html-validate'],
   loadPage: async (url) => {
     const response = await safeHttpClient.get(url);
+    const page = await safeBrowserPage(response);
     return {
       url: response.finalUrl,
       html: response.body,
       http: { status: response.status, headers: response.headers },
+      page,
     };
   },
   onProgress: (event) => {
@@ -94,8 +89,8 @@ spanier.one, bleiben aber ohne externe Assets eigenständig nutzbar.
 
 Der **automatische Befundindex** liegt zwischen 0 und 100. Er verdichtet ausschließlich
 die in diesem Lauf erzeugten Meldungen: kritisch = 20 Punkte, Warnung = 8 Punkte,
-Hinweis = 2 Punkte. Eine fehlgeschlagene Engine ergänzt 15 Punkte, eine nicht
-ausgeführte Engine 5 Punkte. Der Wert wird bei 100 gedeckelt.
+Hinweis = 2 Punkte. Ein fehlgeschlagener axe-Lauf ergänzt 15 Punkte, ein nicht
+ausgeführter axe-Lauf 5 Punkte. Der Wert wird bei 100 gedeckelt.
 
 Der Index ist ausdrücklich kein Accessibility-, WCAG- oder Konformitätsscore.
 Auch ein Wert von 0 lässt alle nicht automatisierbaren Prüffragen offen. Die
@@ -108,20 +103,18 @@ Lesereihenfolge als PDF-Struktur erhalten. Für die PDF-Ausgabe muss das zu
 Playwright passende Chromium installiert sein, zum Beispiel mit
 `npx playwright install chromium`.
 
-## Prüf-Engines
+## Prüfwerkzeug
 
 - `axe`: WCAG-orientierte DOM-Prüfungen mit der offiziellen axe-core-API und deutscher Sprache
-- `html-validate`: deterministische Regeln für HTML-Struktur und Barrierefreiheit
-- `http`: spanier.one-Prüfungen für die HTML-Antwort und das rohe HTML-Dokument
 
-`all` führt alle Engines aus `ENGINE_IDS` aus. Unbekannte Engine-Namen werden
-mit einem Fehler abgelehnt, nicht stillschweigend ignoriert.
+`all` löst auf axe-core auf. Andere Engine-Namen werden mit einem Fehler
+abgelehnt, nicht stillschweigend ignoriert.
 
-Die berichtsfähige Top-Level-Liste `findings` führt gleichwertige Meldungen
-mehrerer Engines zusammen. `sources` nennt weiterhin jede beitragende Engine
-und Regel. Die unveränderten Einzelmeldungen bleiben unter `results` für die
-Diagnose erhalten; `deduplication` weist Rohzahl, Ergebniszahl und die Zahl der
-zusammengeführten Meldungen aus.
+Die berichtsfähige Top-Level-Liste `findings` führt gleichwertige Meldungen aus
+mehreren Ansichten zusammen. `sources` nennt die beitragende axe-Regel. Die
+unveränderten Einzelmeldungen bleiben unter `results` für die Diagnose erhalten;
+`deduplication` weist Rohzahl, Ergebniszahl und die Zahl der zusammengeführten
+Meldungen aus.
 
 ## Installation über JSR
 

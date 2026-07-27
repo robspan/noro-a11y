@@ -65,13 +65,13 @@ export function renderMarkdownReport(result: AccessibilityRunResult, options: Re
     `- Kritische Befunde: ${summary.counts.critical}`,
     `- Warnungen: ${summary.counts.warning}`,
     `- Hinweise: ${summary.counts.info}`,
-    `- Prüfengines abgeschlossen: ${summary.engines.completed}/${summary.engines.requested}`,
+    `- axe-core abgeschlossen: ${summary.engines.completed}/${summary.engines.requested}`,
     '',
     '> Der automatische Befundindex verdichtet Anzahl und Schwere der Tool-Befunde. Er ist kein Accessibility- oder Konformitätsscore.',
     '',
     `**Website:** ${result.url}`,
     `**Prüfzeitpunkt:** ${formatDate(result.completedAt)}`,
-    `**Engines:** ${result.requestedEngines.join(', ')}`,
+    `**Prüfwerkzeug:** axe-core`,
     `**Befunde:** ${result.findings.length}`,
     '',
   ];
@@ -144,7 +144,7 @@ export function renderHtmlReport(result: AccessibilityRunResult, options: Report
       ${summaryMetric('Kritisch', summary.counts.critical, 'critical')}
       ${summaryMetric('Warnungen', summary.counts.warning, 'warning')}
       ${summaryMetric('Hinweise', summary.counts.info, 'info')}
-      ${summaryMetric('Engines vollständig', `${summary.engines.completed}/${summary.engines.requested}`, 'engine')}
+      ${summaryMetric('axe-core vollständig', `${summary.engines.completed}/${summary.engines.requested}`, 'engine')}
     </div>
     <div class="score-note"><strong>Was die Zahl bedeutet</strong><p>Der Index verdichtet nur Anzahl und Schwere der automatisch erzeugten Befunde. Er misst weder WCAG-Abdeckung noch rechtliche Konformität. Ein Wert von 0 lässt manuell zu prüfende Barrieren offen.</p></div>
     <a class="expert-link" href="${SPANIER_ONE_REPORT_URL}">Ergebnis mit spanier.one fachlich einordnen <span aria-hidden="true">↗</span></a>
@@ -156,7 +156,7 @@ export function renderHtmlReport(result: AccessibilityRunResult, options: Report
   </section>
 
   <section class="engine-section" aria-labelledby="engines-title">
-    <div class="section-head"><div><p class="eyebrow">Prüflauf</p><h2 id="engines-title">Engines&nbsp;<wbr>und&nbsp;<wbr>Grenzen</h2></div><p>${escapeHtml(formatDate(result.completedAt))}</p></div>
+    <div class="section-head"><div><p class="eyebrow">Prüflauf</p><h2 id="engines-title">axe-core&nbsp;<wbr>und&nbsp;<wbr>Grenzen</h2></div><p>${escapeHtml(formatDate(result.completedAt))}</p></div>
     <div class="engine-grid">${engines}</div>
   </section>
 
@@ -213,7 +213,7 @@ function renderFindingHtml(finding: NormalizedFinding, index: number, includeOri
       <header class="finding-head"><span class="severity"><b aria-hidden="true">${severityMark}</b>${escapeHtml(severityLabel(finding.severity))}</span><code>${escapeHtml(finding.code)}</code></header>
       <h3>${bookmarkHeadingHtml(finding.message)}</h3>
       <dl class="finding-meta">
-        <div><dt>Engines / Regeln</dt><dd>${findingSources(finding).map((source) => `<code>${escapeHtml(`${source.engine}/${source.ruleId}`)}</code>`).join('<br>')}</dd></div>
+        <div><dt>axe-core-Regel</dt><dd>${findingSources(finding).map((source) => `<code>${escapeHtml(`${source.engine}/${source.ruleId}`)}</code>`).join('<br>')}</dd></div>
         <div><dt>WCAG-Bezug</dt><dd>${escapeHtml(finding.wcagCriteria?.join(', ') || 'Nicht automatisch zugeordnet')}</dd></div>
         <div><dt>Fundstellen</dt><dd>${selectors}</dd></div>
       </dl>

@@ -11,9 +11,11 @@ test('all selects every available engine', () => {
   assert.deepEqual(resolveEngines('all'), [...ENGINE_IDS]);
 });
 
-test('a subset is deduplicated and unknown engines are rejected', () => {
+test('axe is the sole engine and unknown engines are rejected', () => {
   const { resolveEngines } = packageApi;
-  assert.deepEqual(resolveEngines(['http', 'http', 'html-validate']), ['http', 'html-validate']);
+  assert.deepEqual(resolveEngines(['axe', 'axe']), ['axe']);
+  assert.throws(() => resolveEngines(['http']), /Unbekannte Prüfengine/);
+  assert.throws(() => resolveEngines(['html-validate']), /Unbekannte Prüfengine/);
   assert.throws(() => resolveEngines(['unknown']), /Unbekannte Prüfengine/);
 });
 
@@ -28,7 +30,7 @@ test('the crawler follows same-host links breadth-first up to the requested dept
   const result = await crawlAccessibilityChecks('https://example.org', {
     depth: 1,
     maxPages: 10,
-    engines: ['http'],
+    engines: ['axe'],
     loadPage: async (url) => {
       loaded.push(url);
       const html = documents.get(url);
@@ -59,7 +61,7 @@ test('the crawler caps page count and skips non-HTML targets and cross-host redi
   const result = await crawlAccessibilityChecks('https://example.org', {
     depth: 2,
     maxPages: 3,
-    engines: ['http'],
+    engines: ['axe'],
     loadPage: async (url) => {
       if (url === 'https://example.org/') {
         return {
@@ -109,7 +111,7 @@ test('the crawler defaults to depth one and at most ten loaded targets', async (
   const { crawlAccessibilityChecks } = packageApi;
   const links = Array.from({ length: 12 }, (_, index) => `<a href="/${index + 1}">Page</a>`).join('');
   const result = await crawlAccessibilityChecks('https://example.org', {
-    engines: ['http'],
+    engines: ['axe'],
     loadPage: async (url) => ({
       url,
       html: url === 'https://example.org/' ? `<html lang="de"><title>Start</title>${links}</html>` : '<html lang="de"><title>Child</title></html>',
@@ -128,7 +130,7 @@ test('the crawler emits page and finding progress for streaming consumers', asyn
   const events = [];
   await crawlAccessibilityChecks('https://example.org', {
     depth: 0,
-    engines: ['http'],
+    engines: ['axe'],
     onProgress: (event) => events.push(event),
     loadPage: async (url) => ({
       url,
@@ -138,23 +140,17 @@ test('the crawler emits page and finding progress for streaming consumers', asyn
   });
 
   assert.deepEqual(events.map(({ phase }) => phase).slice(0, 3), ['loading', 'loaded', 'checking']);
-  assert.ok(events.some(({ phase, finding }) => phase === 'finding' && finding));
   assert.equal(events.at(-1).phase, 'crawl-completed');
 });
 
-test('HTTP and HTML findings are German and retain stable rule IDs', async () => {
+test('axe findings are German and retain stable rule IDs across report formats', async () => {
   const { renderAgentReport, renderHtmlReport, renderMarkdownReport, renderPdfReport, renderSarifReport, runAccessibilityChecks, SPANIER_ONE_REPORT_URL, summarizeAutomatedRisk } = packageApi;
-  const result = await runAccessibilityChecks(
-    {
-      url: 'https://example.org',
-      html: '<!doctype html><html><head><title></title></head><body><main><img src="x"><div id="same"></div><div id="same"></div></main></body></html>',
-      http: { status: 200, headers: { 'content-type': 'text/html' } },
-    },
-    { engines: ['http', 'html-validate'] },
-  );
+  const result = accessibilityResult([
+    axeFinding('violation-image-alt', 'critical', 'Ein Bild benötigt einen Alternativtext.'),
+    axeFinding('manual-review-color-contrast', 'warning', 'Farbkontrast manuell prüfen.'),
+  ]);
 
-  assert.ok(result.findings.some((finding) => finding.ruleId === 'html-missing-lang'));
-  assert.ok(result.findings.some((finding) => finding.ruleId === 'no-dup-id'));
+  assert.ok(result.findings.every((finding) => finding.engine === 'axe'));
   assert.ok(result.findings.every((finding) => finding.message.length > 0));
   assert.ok(result.findings.every((finding) => !finding.message.includes('must')));
   assert.equal(result.url, 'https://example.org');
@@ -190,7 +186,7 @@ test('HTTP and HTML findings are German and retain stable rule IDs', async () =>
   assert.match(pdfStructure, /\/URI \(https:\/\/spanier\.one\//);
 });
 
-test('Axe runs in Playwright and the analysis bundle deduplicates checker overlap', async () => {
+test('axe runs in Playwright as the sole automated accessibility engine', async () => {
   const { chromium } = await import('playwright');
   const browser = await chromium.launch({ headless: true });
   try {
@@ -208,17 +204,17 @@ test('Axe runs in Playwright and the analysis bundle deduplicates checker overla
       { engines: 'all' },
     );
 
-    assert.deepEqual(result.requestedEngines, ['http', 'html-validate', 'axe']);
+    assert.deepEqual(result.requestedEngines, ['axe']);
     assert.equal(result.results.find(({ engine }) => engine === 'axe')?.status, 'completed');
     const imageAlt = result.findings.find(({ sources }) =>
       sources.some(({ code }) => code === 'axe.violation-image-alt'),
     );
     assert.ok(imageAlt);
-    assert.deepEqual(
-      imageAlt.sources.map(({ engine }) => engine),
-      ['axe', 'html-validate', 'http'],
+    assert.deepEqual(imageAlt.sources.map(({ engine }) => engine), ['axe']);
+    assert.equal(
+      result.findings.some(({ code }) => code.startsWith('http.') || code.startsWith('html-validate.')),
+      false,
     );
-    assert.ok(result.deduplication.rawFindings > result.deduplication.findings);
     assert.equal(
       result.deduplication.collapsed,
       result.deduplication.rawFindings - result.deduplication.findings,
@@ -236,36 +232,20 @@ test('Axe runs in Playwright and the analysis bundle deduplicates checker overla
   }
 });
 
-test('HTTP image-alt accepts every valid HTML attribute syntax', async () => {
+test('raw HTTP and HTML input never creates accessibility findings without axe', async () => {
   const { runAccessibilityChecks } = packageApi;
-  for (const image of ['<img src="decorative.svg" alt>', '<img src="decorative.svg" alt="">', '<img src="logo.svg" alt="Beispiel GmbH">', '<img src="logo.svg" alt=Beispiel>']) {
-    const result = await runAccessibilityChecks(
-      {
-        url: 'https://example.org',
-        html: `<!doctype html><html lang="de"><head><title>Test</title></head><body>${image}</body></html>`,
-        http: { status: 200, headers: { 'content-type': 'text/html' } },
-      },
-      { engines: ['http'] },
-    );
-
-    assert.equal(
-      result.findings.some(({ ruleId }) => ruleId === 'html-images-without-alt'),
-      false,
-      image,
-    );
-  }
-
-  const missing = await runAccessibilityChecks(
+  const result = await runAccessibilityChecks(
     {
       url: 'https://example.org',
-      html: '<!doctype html><html lang="de"><head><title>Test</title></head><body><img src="one.svg"><img src="two.svg"></body></html>',
-      http: { status: 200, headers: { 'content-type': 'text/html' } },
+      html: '<html><head><title></title></head><body><h2>Ohne H1</h2><img src="missing-alt"></body></html>',
+      http: { status: 500, headers: { 'content-type': 'text/plain' } },
     },
-    { engines: ['http'] },
+    { engines: 'all' },
   );
-  const missingAlt = missing.findings.find(({ ruleId }) => ruleId === 'html-images-without-alt');
-  assert.ok(missingAlt);
-  assert.equal(missingAlt.occurrenceCount, 2);
+
+  assert.deepEqual(result.requestedEngines, ['axe']);
+  assert.equal(result.results[0].status, 'not_run');
+  assert.deepEqual(result.findings, []);
 });
 
 test('the automated risk index is deterministic and never claims conformance', () => {
@@ -273,33 +253,32 @@ test('the automated risk index is deterministic and never claims conformance', (
   const result = {
     url: 'https://example.org',
     locale: 'de',
-    requestedEngines: ['http', 'axe'],
+    requestedEngines: ['axe'],
     startedAt: '2026-07-20T08:00:00.000Z',
     completedAt: '2026-07-20T08:00:01.000Z',
     results: [
-      { engine: 'http', status: 'completed', summary: '', findings: [] },
       { engine: 'axe', status: 'failed', summary: '', findings: [] },
     ],
     findings: [
       {
-        code: 'a',
-        engine: 'http',
+        code: 'axe.a',
+        engine: 'axe',
         ruleId: 'a',
         severity: 'critical',
         message: 'A',
         translationStatus: 'verified',
       },
       {
-        code: 'b',
-        engine: 'http',
+        code: 'axe.b',
+        engine: 'axe',
         ruleId: 'b',
         severity: 'warning',
         message: 'B',
         translationStatus: 'verified',
       },
       {
-        code: 'c',
-        engine: 'http',
+        code: 'axe.c',
+        engine: 'axe',
         ruleId: 'c',
         severity: 'info',
         message: 'C',
@@ -325,8 +304,8 @@ test('the branded HTML report has no automated WCAG A or AA violations in any ri
       const page = await context.newPage();
       const result = accessibilityResult(
         findings.map((severity, index) => ({
-          code: `http.test-${scenario}-${index}`,
-          engine: 'http',
+          code: `axe.test-${scenario}-${index}`,
+          engine: 'axe',
           ruleId: `test-${scenario}-${index}`,
           severity,
           message: `Beispielbefund ${index + 1}.`,
@@ -361,18 +340,34 @@ function accessibilityResult(findings) {
   return {
     url: 'https://example.org',
     locale: 'de',
-    requestedEngines: ['http'],
+    requestedEngines: ['axe'],
     startedAt: '2026-07-20T08:00:00.000Z',
     completedAt: '2026-07-20T08:00:01.000Z',
     results: [
       {
-        engine: 'http',
+        engine: 'axe',
         status: 'completed',
-        summary: 'Eine HTTP-Antwort geprüft.',
+        summary: 'axe-core abgeschlossen.',
         findings,
         limitations: ['Eine manuelle Prüfung bleibt erforderlich.'],
       },
     ],
     findings,
+  };
+}
+
+function axeFinding(ruleId, severity, message) {
+  const code = `axe.${ruleId}`;
+  return {
+    code,
+    engine: 'axe',
+    ruleId,
+    severity,
+    message,
+    translationStatus: 'verified',
+    wcagCriteria: ['1.1.1'],
+    selectors: ['main > img'],
+    occurrenceCount: 1,
+    sources: [{ engine: 'axe', ruleId, code, occurrenceCount: 1 }],
   };
 }
