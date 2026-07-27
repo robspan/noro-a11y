@@ -205,7 +205,23 @@ test('axe runs in Playwright as the sole automated accessibility engine', async 
     );
 
     assert.deepEqual(result.requestedEngines, ['axe']);
-    assert.equal(result.results.find(({ engine }) => engine === 'axe')?.status, 'completed');
+    const axeResult = result.results.find(({ engine }) => engine === 'axe');
+    assert.equal(axeResult?.status, 'completed');
+    assert.equal(
+      axeResult.criterionResults.some(
+        ({ source }) => source === 'axe.video-caption',
+      ),
+      false,
+      'a rule without matching content is not recorded as a passed criterion',
+    );
+    assert.equal(axeResult.metadata.axeVersion, '4.12.1');
+    assert.equal(axeResult.metadata.rulesConfigured, 70);
+    assert.equal(
+      axeResult.metadata.ruleEvaluations,
+      axeResult.metadata.rulesWithoutFindings +
+        axeResult.metadata.rulesNeedingManualReview +
+        axeResult.metadata.rulesWithViolations,
+    );
     const imageAlt = result.findings.find(({ sources }) =>
       sources.some(({ code }) => code === 'axe.violation-image-alt'),
     );

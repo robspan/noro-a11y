@@ -15,11 +15,12 @@ const AXE_RUN_OPTIONS: RunOptions = {
     type: 'tag',
     values: AXE_TAGS,
   },
-  resultTypes: ['violations', 'incomplete'],
+  resultTypes: ['violations', 'incomplete', 'passes', 'inapplicable'],
   // The screening evaluates the containing document. Embedded documents are
   // separate audit targets and are called out explicitly as a limitation.
   iframes: false,
 };
+const AXE_RULE_COUNT = axe.getRules(AXE_TAGS).length;
 const LOCALIZED_AXE_RUNTIME = loadGermanAxeLocale().then((locale) => ({
   locale,
   source: `${axe.source}\naxe.configure({ locale: ${JSON.stringify(locale)} });`,
@@ -90,6 +91,14 @@ export async function runAxeEngine(input: AccessibilityRunInput): Promise<Engine
       ...criterionResults(results.violations, 'failed'),
     ],
     metadata: {
+      axeVersion: axe.version,
+      rulesConfigured: AXE_RULE_COUNT,
+      ruleEvaluations:
+        results.passes.length +
+        results.incomplete.length +
+        results.violations.length,
+      rulesWithoutFindings: results.passes.length,
+      rulesWithoutRelevantContent: results.inapplicable.length,
       rulesWithViolations: violations.length,
       rulesNeedingManualReview: manualReview.length,
       violationNodes: results.violations.reduce((sum, item) => sum + item.nodes.length, 0),
