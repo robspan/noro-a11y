@@ -186,6 +186,87 @@ test('axe findings are German and retain stable rule IDs across report formats',
   assert.match(pdfStructure, /\/URI \(https:\/\/spanier\.one\//);
 });
 
+test('axe metadata is derived from every returned runtime bucket', async () => {
+  const result = (id, tags = ['wcag111']) => ({
+    id,
+    impact: 'moderate',
+    tags,
+    description: `Beschreibung ${id}`,
+    help: `Hilfe ${id}`,
+    helpUrl: `https://example.org/rules/${id}`,
+    nodes: [],
+  });
+  const fixture = {
+    testEngine: { name: 'axe-core', version: 'fixture-runtime-9.9.9' },
+    testRunner: { name: 'fixture' },
+    testEnvironment: {},
+    timestamp: '2026-07-27T00:00:00.000Z',
+    url: 'https://example.org',
+    toolOptions: {},
+    passes: [result('pass-one', ['wcag111'])],
+    incomplete: [
+      { ...result('review-one', ['wcag121']), nodes: [{ target: [['video']] }] },
+      { ...result('review-two', ['wcag131']), nodes: [{ target: [['main']] }] },
+    ],
+    violations: [
+      { ...result('fail-one', ['wcag141']), nodes: [{ target: [['img']] }] },
+      { ...result('fail-two', ['wcag211']), nodes: [{ target: [['button']] }] },
+      { ...result('fail-three', ['wcag241']), nodes: [{ target: [['a']] }] },
+    ],
+    inapplicable: [
+      result('irrelevant-one', ['wcag311']),
+      result('irrelevant-two', ['wcag312']),
+      result('irrelevant-three', ['wcag321']),
+      result('irrelevant-four', ['wcag322']),
+    ],
+  };
+  let executedOptions;
+  const page = {
+    evaluate: async (_callback, argument) => {
+      if (typeof argument === 'string') return true;
+      executedOptions = argument;
+      return fixture;
+    },
+  };
+
+  const run = await packageApi.runAccessibilityChecks(
+    {
+      url: 'https://example.org',
+      html: '<html lang="de"><title>Fixture</title></html>',
+      page,
+    },
+    { engines: ['axe'] },
+  );
+  const axeResult = run.results[0];
+
+  assert.deepEqual(
+    [...executedOptions.resultTypes].sort(),
+    ['inapplicable', 'incomplete', 'passes', 'violations'],
+  );
+  assert.equal(axeResult.metadata.axeVersion, 'fixture-runtime-9.9.9');
+  assert.equal(axeResult.metadata.rulesConfigured, 10);
+  assert.equal(axeResult.metadata.ruleEvaluations, 6);
+  assert.equal(axeResult.metadata.rulesWithoutFindings, 1);
+  assert.equal(axeResult.metadata.rulesNeedingManualReview, 2);
+  assert.equal(axeResult.metadata.rulesWithViolations, 3);
+  assert.equal(axeResult.metadata.rulesWithoutRelevantContent, 4);
+  assert.deepEqual(
+    axeResult.criterionResults.map(({ source, outcome }) => [source, outcome]),
+    [
+      ['axe.pass-one', 'passed'],
+      ['axe.review-one', 'needs-review'],
+      ['axe.review-two', 'needs-review'],
+      ['axe.fail-one', 'failed'],
+      ['axe.fail-two', 'failed'],
+      ['axe.fail-three', 'failed'],
+    ],
+  );
+  assert.equal(
+    axeResult.criterionResults.some(({ source }) => source.startsWith('axe.irrelevant-')),
+    false,
+  );
+});
+
 test('axe runs in Playwright as the sole automated accessibility engine', async () => {
   const { chromium } = await import('playwright');
   const browser = await chromium.launch({ headless: true });
