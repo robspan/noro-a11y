@@ -20,6 +20,7 @@ const AXE_RUN_OPTIONS: RunOptions = {
   // separate audit targets and are called out explicitly as a limitation.
   iframes: false,
 };
+const AXE_RULE_COUNT = axe.getRules(AXE_TAGS).length;
 const LOCALIZED_AXE_RUNTIME = loadGermanAxeLocale().then((locale) => ({
   locale,
   source: `${axe.source}\naxe.configure({ locale: ${JSON.stringify(locale)} });`,
@@ -86,10 +87,23 @@ export async function runAxeEngine(input: AccessibilityRunInput): Promise<Engine
     findings: [...violations, ...manualReview],
     criterionResults: [
       ...criterionResults(results.passes, 'passed'),
+      // An inapplicable axe rule still ran and found no matching content.
+      // The checklist calls this "Automatik ohne Befund", never a full WCAG
+      // pass; criteria without any axe rule remain open for manual testing.
+      ...criterionResults(results.inapplicable, 'passed'),
       ...criterionResults(results.incomplete, 'needs-review'),
       ...criterionResults(results.violations, 'failed'),
     ],
     metadata: {
+      axeVersion: axe.version,
+      rulesConfigured: AXE_RULE_COUNT,
+      ruleEvaluations:
+        results.passes.length +
+        results.inapplicable.length +
+        results.incomplete.length +
+        results.violations.length,
+      rulesWithoutFindings: results.passes.length,
+      rulesWithoutRelevantContent: results.inapplicable.length,
       rulesWithViolations: violations.length,
       rulesNeedingManualReview: manualReview.length,
       violationNodes: results.violations.reduce((sum, item) => sum + item.nodes.length, 0),
