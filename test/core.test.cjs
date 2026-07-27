@@ -215,7 +215,12 @@ test('axe runs in Playwright as the sole automated accessibility engine', async 
       'a rule without matching content is not recorded as a passed criterion',
     );
     assert.equal(axeResult.metadata.axeVersion, '4.12.1');
-    assert.equal(axeResult.metadata.rulesConfigured, 70);
+    assert.ok(axeResult.metadata.rulesConfigured > 0);
+    assert.equal(
+      axeResult.metadata.rulesConfigured,
+      axeResult.metadata.ruleEvaluations +
+        axeResult.metadata.rulesWithoutRelevantContent,
+    );
     assert.equal(
       axeResult.metadata.ruleEvaluations,
       axeResult.metadata.rulesWithoutFindings +

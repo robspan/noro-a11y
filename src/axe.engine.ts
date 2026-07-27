@@ -20,7 +20,6 @@ const AXE_RUN_OPTIONS: RunOptions = {
   // separate audit targets and are called out explicitly as a limitation.
   iframes: false,
 };
-const AXE_RULE_COUNT = axe.getRules(AXE_TAGS).length;
 const LOCALIZED_AXE_RUNTIME = loadGermanAxeLocale().then((locale) => ({
   locale,
   source: `${axe.source}\naxe.configure({ locale: ${JSON.stringify(locale)} });`,
@@ -79,6 +78,11 @@ export async function runAxeEngine(input: AccessibilityRunInput): Promise<Engine
   );
   const violations = results.violations.map((item) => axeFinding(item, false, germanRules));
   const manualReview = results.incomplete.map((item) => axeFinding(item, true, germanRules));
+  const rulesConfigured =
+    results.passes.length +
+    results.incomplete.length +
+    results.violations.length +
+    results.inapplicable.length;
 
   return {
     engine: 'axe',
@@ -91,8 +95,8 @@ export async function runAxeEngine(input: AccessibilityRunInput): Promise<Engine
       ...criterionResults(results.violations, 'failed'),
     ],
     metadata: {
-      axeVersion: axe.version,
-      rulesConfigured: AXE_RULE_COUNT,
+      axeVersion: results.testEngine.version,
+      rulesConfigured,
       ruleEvaluations:
         results.passes.length +
         results.incomplete.length +
