@@ -6,6 +6,7 @@ export type EngineId = (typeof ENGINE_IDS)[number];
 export type EngineSelection = 'all' | EngineId | readonly EngineId[];
 export type CheckStatus = 'completed' | 'not_run' | 'failed';
 export type FindingSeverity = 'info' | 'warning' | 'critical';
+export type AccessibilityImpact = 'minor' | 'moderate' | 'serious' | 'critical';
 export type TranslationStatus = 'verified' | 'engine-locale' | 'fallback';
 export type AutomatedCriterionOutcome = 'passed' | 'failed' | 'needs-review';
 
@@ -40,12 +41,25 @@ export interface AutomatedCriterionResult {
   source: string;
 }
 
+export interface AutomatedRuleObservation {
+  engine: EngineId;
+  ruleId: string;
+  ruleVersion: string;
+  impact: AccessibilityImpact;
+  wcagCriteria: string[];
+  passedTargets: number;
+  failedTargets: number;
+  manualTargets: number;
+  inapplicableEvaluations: number;
+}
+
 export interface EngineResult {
   engine: EngineId;
   status: CheckStatus;
   summary: string;
   findings: NormalizedFinding[];
   criterionResults?: AutomatedCriterionResult[];
+  scoreRules?: AutomatedRuleObservation[];
   metadata?: Record<string, string | number | boolean | null>;
   limitations?: string[];
 }

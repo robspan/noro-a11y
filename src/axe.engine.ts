@@ -2,9 +2,11 @@ import axe from 'axe-core';
 import type { AxeResults, Result, RunOptions } from 'axe-core';
 import { normalizedFinding } from './catalog.ts';
 import type {
+  AccessibilityImpact,
   AccessibilityRunInput,
   AutomatedCriterionOutcome,
   AutomatedCriterionResult,
+  AutomatedRuleObservation,
   EngineResult,
   FindingSeverity,
 } from './types.ts';
@@ -94,6 +96,12 @@ export async function runAxeEngine(input: AccessibilityRunInput): Promise<Engine
       ...criterionResults(results.incomplete, 'needs-review'),
       ...criterionResults(results.violations, 'failed'),
     ],
+    scoreRules: [
+      ...scoreRuleObservations(results.passes, 'passed', results.testEngine.version),
+      ...scoreRuleObservations(results.incomplete, 'manual', results.testEngine.version),
+      ...scoreRuleObservations(results.violations, 'failed', results.testEngine.version),
+      ...scoreRuleObservations(results.inapplicable, 'inapplicable', results.testEngine.version),
+    ],
     metadata: {
       axeVersion: results.testEngine.version,
       rulesConfigured,
@@ -152,6 +160,24 @@ function criterionResults(items: Result[], outcome: AutomatedCriterionOutcome): 
   })));
 }
 
+function scoreRuleObservations(
+  items: Result[],
+  outcome: 'passed' | 'failed' | 'manual' | 'inapplicable',
+  ruleVersion: string,
+): AutomatedRuleObservation[] {
+  return items.map((item) => ({
+    engine: 'axe',
+    ruleId: item.id,
+    ruleVersion,
+    impact: accessibilityImpact(item.impact),
+    wcagCriteria: wcagCriteria(item.tags),
+    passedTargets: outcome === 'passed' ? item.nodes.length : 0,
+    failedTargets: outcome === 'failed' ? item.nodes.length : 0,
+    manualTargets: outcome === 'manual' ? item.nodes.length : 0,
+    inapplicableEvaluations: outcome === 'inapplicable' ? 1 : 0,
+  }));
+}
+
 function wcagCriteria(tags: string[]): string[] {
   return [...new Set(tags.map(wcagCriterion).filter((value): value is string => Boolean(value)))];
 }
@@ -165,4 +191,18 @@ function severityForImpact(impact: string | null | undefined): FindingSeverity {
   if (impact === 'critical' || impact === 'serious') return 'critical';
   if (impact === 'moderate') return 'warning';
   return 'info';
+}
+
+function accessibilityImpact(
+  impact: string | null | undefined,
+): AccessibilityImpact {
+  if (
+    impact === 'critical' ||
+    impact === 'serious' ||
+    impact === 'moderate' ||
+    impact === 'minor'
+  ) {
+    return impact;
+  }
+  return 'minor';
 }
