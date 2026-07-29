@@ -4,6 +4,8 @@ import type {
   AccessibilityCrawlPageResult,
   AccessibilityCrawlResult,
   AccessibilityRunInput,
+  AccessibilityRunResult,
+  EngineId,
 } from './types.ts';
 
 const DEFAULT_MAX_PAGES = 10;
@@ -13,6 +15,30 @@ const MAX_PAGE_LIMIT = 1_000;
 interface QueueItem {
   url: string;
   depth: number;
+}
+
+interface CrawlState {
+  queue: QueueItem[];
+  scheduled: Set<string>;
+  auditedFinalUrls: Set<string>;
+  pages: AccessibilityCrawlPageResult[];
+  allowedHostname?: string;
+}
+
+interface CrawlExecution {
+  options: AccessibilityCrawlOptions;
+  requestedEngines: EngineId[];
+  depth: number;
+  maxPages: number;
+  state: CrawlState;
+}
+
+interface LoadedPageContext {
+  execution: CrawlExecution;
+  current: QueueItem;
+  input: AccessibilityRunInput;
+  finalUrl: string;
+  pageNumber: number;
 }
 
 /**
@@ -31,130 +57,29 @@ export async function crawlAccessibilityChecks(
   if (!canonicalStartUrl) throw new Error('Die Startadresse muss eine absolute HTTP- oder HTTPS-URL sein.');
 
   const startedAt = new Date().toISOString();
-  const queue: QueueItem[] = [{ url: canonicalStartUrl, depth: 0 }];
-  const scheduled = new Set([canonicalStartUrl]);
-  const auditedFinalUrls = new Set<string>();
-  const pages: AccessibilityCrawlPageResult[] = [];
-  let allowedHostname: string | undefined;
+  const state: CrawlState = {
+    queue: [{ url: canonicalStartUrl, depth: 0 }],
+    scheduled: new Set([canonicalStartUrl]),
+    auditedFinalUrls: new Set<string>(),
+    pages: [],
+  };
+  const execution: CrawlExecution = {
+    options,
+    requestedEngines,
+    depth,
+    maxPages,
+    state,
+  };
 
-  while (queue.length > 0 && pages.length < maxPages) {
-    const current = queue.shift() as QueueItem;
-    const pageNumber = pages.length + 1;
-    await progress(options, {
-      phase: 'loading', url: current.url, depth: current.depth, pageNumber, maxPages,
-      message: `Lade Seite ${pageNumber}: ${displayUrl(current.url)}`,
-    });
-    let input: AccessibilityRunInput;
-    try {
-      input = await options.loadPage(current.url, current.depth);
-    } catch (error) {
-      await progress(options, {
-        phase: 'failed', url: current.url, depth: current.depth, pageNumber, maxPages,
-        message: `Seite konnte nicht geladen werden: ${displayUrl(current.url)}`,
-      });
-      pages.push({
-        requestedUrl: current.url,
-        url: current.url,
-        depth: current.depth,
-        status: 'failed',
-        error: errorMessage(error),
-      });
-      continue;
-    }
-
-    const finalUrl = canonicalizeHttpUrl(input.url);
-    if (!finalUrl) {
-      await progress(options, {
-        phase: 'skipped', url: current.url, depth: current.depth, pageNumber, maxPages,
-        message: 'Geladenes Ziel ohne gültige Webadresse übersprungen.',
-      });
-      pages.push(skippedPage(current, current.url, 'Das geladene Ziel besitzt keine gültige HTTP- oder HTTPS-URL.'));
-      continue;
-    }
-
-    await progress(options, {
-      phase: 'loaded', url: finalUrl, depth: current.depth, pageNumber, maxPages,
-      message: `Seite ${pageNumber} geladen: ${displayUrl(finalUrl)}`,
-    });
-
-    const finalHostname = new URL(finalUrl).hostname.toLowerCase();
-    allowedHostname ??= finalHostname;
-    if (finalHostname !== allowedHostname) {
-      await progress(options, {
-        phase: 'skipped', url: finalUrl, depth: current.depth, pageNumber, maxPages,
-        message: `Fremden Host übersprungen: ${displayUrl(finalUrl)}`,
-      });
-      pages.push(skippedPage(current, finalUrl, 'Das Ziel wurde auf einen anderen Host umgeleitet.'));
-      continue;
-    }
-    if (auditedFinalUrls.has(finalUrl)) {
-      pages.push(skippedPage(current, finalUrl, 'Das umgeleitete Ziel wurde bereits geprüft.'));
-      continue;
-    }
-    if (!isHtmlDocument(input)) {
-      pages.push(skippedPage(current, finalUrl, 'Das verlinkte Ziel ist kein HTML-Dokument.'));
-      continue;
-    }
-
-    auditedFinalUrls.add(finalUrl);
-    await progress(options, {
-      phase: 'checking', url: finalUrl, depth: current.depth, pageNumber, maxPages,
-      message: `Prüfe Seite ${pageNumber}: ${displayUrl(finalUrl)}`,
-    });
-    let result;
-    try {
-      result = await runAccessibilityChecks(
-        { ...input, url: finalUrl },
-        { engines: requestedEngines },
-      );
-    } catch (error) {
-      await progress(options, {
-        phase: 'failed', url: finalUrl, depth: current.depth, pageNumber, maxPages,
-        message: `Prüfung fehlgeschlagen: ${displayUrl(finalUrl)}`,
-      });
-      pages.push({
-        requestedUrl: current.url,
-        url: finalUrl,
-        depth: current.depth,
-        status: 'failed',
-        error: errorMessage(error),
-      });
-      continue;
-    }
-
-    pages.push({
-      requestedUrl: current.url,
-      url: finalUrl,
-      depth: current.depth,
-      status: 'completed',
-      result,
-    });
-
-    for (const finding of result.findings) {
-      await progress(options, {
-        phase: 'finding', url: finalUrl, depth: current.depth, pageNumber, maxPages,
-        message: finding.message, finding,
-      });
-    }
-    await progress(options, {
-      phase: 'completed', url: finalUrl, depth: current.depth, pageNumber, maxPages,
-      message: `Seite ${pageNumber} geprüft: ${result.findings.length} Warnsignale.`,
-      findingCount: result.findings.length,
-    });
-
-    if (current.depth >= depth) continue;
-    for (const url of linkedPageUrls(input.html, finalUrl, allowedHostname)) {
-      if (scheduled.has(url) || auditedFinalUrls.has(url)) continue;
-      scheduled.add(url);
-      queue.push({ url, depth: current.depth + 1 });
-    }
+  while (state.queue.length > 0 && state.pages.length < maxPages) {
+    const current = state.queue.shift() as QueueItem;
+    await processCrawlPage(execution, current);
   }
 
-
   await progress(options, {
-    phase: 'crawl-completed', url: canonicalStartUrl, depth, pageNumber: pages.length, maxPages,
-    message: `${pages.length} Seiten verarbeitet.`,
-    findingCount: pages.reduce((sum, page) => sum + (page.result?.findings.length ?? 0), 0),
+    phase: 'crawl-completed', url: canonicalStartUrl, depth, pageNumber: state.pages.length, maxPages,
+    message: `${state.pages.length} Seiten verarbeitet.`,
+    findingCount: state.pages.reduce((sum, page) => sum + (page.result?.findings.length ?? 0), 0),
   });
 
   return {
@@ -165,12 +90,236 @@ export async function crawlAccessibilityChecks(
     maxPages,
     startedAt,
     completedAt: new Date().toISOString(),
-    truncated: queue.length > 0,
-    pages,
-    findings: pages.flatMap((page) =>
+    truncated: state.queue.length > 0,
+    pages: state.pages,
+    findings: state.pages.flatMap((page) =>
       page.result?.findings.map((finding) => ({ ...finding, url: page.url, depth: page.depth })) ?? [],
     ),
   };
+}
+
+async function processCrawlPage(
+  execution: CrawlExecution,
+  current: QueueItem,
+): Promise<void> {
+  const pageNumber = execution.state.pages.length + 1;
+  const input = await loadCrawlPage(execution, current, pageNumber);
+  if (!input) return;
+  const finalUrl = await validateLoadedPage(execution, current, input, pageNumber);
+  if (!finalUrl) return;
+  const context = { execution, current, input, finalUrl, pageNumber };
+  const result = await auditCrawlPage(context);
+  if (!result) return;
+  await completeCrawlPage(context, result);
+}
+
+async function loadCrawlPage(
+  execution: CrawlExecution,
+  current: QueueItem,
+  pageNumber: number,
+): Promise<AccessibilityRunInput | undefined> {
+  await progress(execution.options, {
+    phase: 'loading', url: current.url, depth: current.depth, pageNumber, maxPages: execution.maxPages,
+    message: `Lade Seite ${pageNumber}: ${displayUrl(current.url)}`,
+  });
+  try {
+    return await execution.options.loadPage(current.url, current.depth);
+  } catch (error) {
+    await recordFailedPage({
+      execution, current, url: current.url, pageNumber,
+      message: `Seite konnte nicht geladen werden: ${displayUrl(current.url)}`,
+      error,
+    });
+    return undefined;
+  }
+}
+
+async function validateLoadedPage(
+  execution: CrawlExecution,
+  current: QueueItem,
+  input: AccessibilityRunInput,
+  pageNumber: number,
+): Promise<string | undefined> {
+  const finalUrl = canonicalizeHttpUrl(input.url);
+  if (!finalUrl) {
+    await recordSkippedPage({
+      execution, current, url: current.url, pageNumber,
+      eventMessage: 'Geladenes Ziel ohne gültige Webadresse übersprungen.',
+      pageError: 'Das geladene Ziel besitzt keine gültige HTTP- oder HTTPS-URL.',
+    });
+    return undefined;
+  }
+  await progress(execution.options, {
+    phase: 'loaded', url: finalUrl, depth: current.depth, pageNumber, maxPages: execution.maxPages,
+    message: `Seite ${pageNumber} geladen: ${displayUrl(finalUrl)}`,
+  });
+  return acceptedFinalUrl({
+    execution,
+    current,
+    input,
+    finalUrl,
+    pageNumber,
+  });
+}
+
+async function acceptedFinalUrl(
+  context: LoadedPageContext,
+): Promise<string | undefined> {
+  const { execution, current, input, finalUrl, pageNumber } = context;
+  const finalHostname = new URL(finalUrl).hostname.toLowerCase();
+  execution.state.allowedHostname ??= finalHostname;
+  const rejection = loadedPageRejection(execution.state, input, finalUrl, finalHostname);
+  if (!rejection) return finalUrl;
+  await recordSkippedPage({
+    execution,
+    current,
+    url: finalUrl,
+    pageNumber,
+    ...rejection,
+  });
+  return undefined;
+}
+
+function loadedPageRejection(
+  state: CrawlState,
+  input: AccessibilityRunInput,
+  finalUrl: string,
+  finalHostname: string,
+): { eventMessage: string; pageError: string } | undefined {
+  if (finalHostname !== state.allowedHostname) {
+    return {
+      eventMessage: `Fremden Host übersprungen: ${displayUrl(finalUrl)}`,
+      pageError: 'Das Ziel wurde auf einen anderen Host umgeleitet.',
+    };
+  }
+  if (state.auditedFinalUrls.has(finalUrl)) {
+    return {
+      eventMessage: 'Bereits geprüftes Umleitungsziel übersprungen.',
+      pageError: 'Das umgeleitete Ziel wurde bereits geprüft.',
+    };
+  }
+  if (!isHtmlDocument(input)) {
+    return {
+      eventMessage: 'Nicht-HTML-Ziel übersprungen.',
+      pageError: 'Das verlinkte Ziel ist kein HTML-Dokument.',
+    };
+  }
+  return undefined;
+}
+
+async function auditCrawlPage(
+  context: LoadedPageContext,
+): Promise<AccessibilityRunResult | undefined> {
+  const { execution, current, input, finalUrl, pageNumber } = context;
+  execution.state.auditedFinalUrls.add(finalUrl);
+  await progress(execution.options, {
+    phase: 'checking', url: finalUrl, depth: current.depth, pageNumber, maxPages: execution.maxPages,
+    message: `Prüfe Seite ${pageNumber}: ${displayUrl(finalUrl)}`,
+  });
+  try {
+    return await runAccessibilityChecks(
+      { ...input, url: finalUrl },
+      { engines: execution.requestedEngines },
+    );
+  } catch (error) {
+    await recordFailedPage({
+      execution, current, url: finalUrl, pageNumber,
+      message: `Prüfung fehlgeschlagen: ${displayUrl(finalUrl)}`,
+      error,
+    });
+    return undefined;
+  }
+}
+
+async function completeCrawlPage(
+  context: LoadedPageContext,
+  result: AccessibilityRunResult,
+): Promise<void> {
+  const { execution, current, input, finalUrl, pageNumber } = context;
+  execution.state.pages.push({
+    requestedUrl: current.url,
+    url: finalUrl,
+    depth: current.depth,
+    status: 'completed',
+    result,
+  });
+  await emitAuditProgress(context, result);
+  scheduleLinkedPages(execution, current, input, finalUrl);
+}
+
+async function emitAuditProgress(
+  context: LoadedPageContext,
+  result: AccessibilityRunResult,
+): Promise<void> {
+  const { execution, current, finalUrl, pageNumber } = context;
+  for (const finding of result.findings) {
+    await progress(execution.options, {
+      phase: 'finding', url: finalUrl, depth: current.depth, pageNumber, maxPages: execution.maxPages,
+      message: finding.message, finding,
+    });
+  }
+  await progress(execution.options, {
+    phase: 'completed', url: finalUrl, depth: current.depth, pageNumber, maxPages: execution.maxPages,
+    message: `Seite ${pageNumber} geprüft: ${result.findings.length} Warnsignale.`,
+    findingCount: result.findings.length,
+  });
+}
+
+function scheduleLinkedPages(
+  execution: CrawlExecution,
+  current: QueueItem,
+  input: AccessibilityRunInput,
+  finalUrl: string,
+): void {
+  if (current.depth >= execution.depth) return;
+  const urls = linkedPageUrls(input.html, finalUrl, execution.state.allowedHostname);
+  for (const url of urls) {
+    if (execution.state.scheduled.has(url) || execution.state.auditedFinalUrls.has(url)) continue;
+    execution.state.scheduled.add(url);
+    execution.state.queue.push({ url, depth: current.depth + 1 });
+  }
+}
+
+async function recordSkippedPage(
+  input: {
+    execution: CrawlExecution;
+    current: QueueItem;
+    url: string;
+    pageNumber: number;
+    eventMessage: string;
+    pageError: string;
+  },
+): Promise<void> {
+  const { execution, current, url, pageNumber, eventMessage, pageError } = input;
+  await progress(execution.options, {
+    phase: 'skipped', url, depth: current.depth, pageNumber, maxPages: execution.maxPages,
+    message: eventMessage,
+  });
+  execution.state.pages.push(skippedPage(current, url, pageError));
+}
+
+async function recordFailedPage(
+  input: {
+    execution: CrawlExecution;
+    current: QueueItem;
+    url: string;
+    pageNumber: number;
+    message: string;
+    error: unknown;
+  },
+): Promise<void> {
+  const { execution, current, url, pageNumber, message, error } = input;
+  await progress(execution.options, {
+    phase: 'failed', url, depth: current.depth, pageNumber, maxPages: execution.maxPages,
+    message,
+  });
+  execution.state.pages.push({
+    requestedUrl: current.url,
+    url,
+    depth: current.depth,
+    status: 'failed',
+    error: errorMessage(error),
+  });
 }
 
 async function progress(

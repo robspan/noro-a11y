@@ -81,32 +81,7 @@ export function deduplicateFindings(
   const groups = new Map<string, MutableFinding>();
 
   for (const finding of findings) {
-    const family = FINDING_FAMILIES.find(({ matches }) => matches(finding.code));
-    const key = family ? `family:${family.key}` : `code:${finding.code}`;
-    const group = groups.get(key) ?? {
-      representative: finding,
-      criteria: new Set<string>(),
-      selectors: new Set<string>(),
-      sources: new Map<string, FindingSource>(),
-      family,
-    };
-
-    if (isBetterRepresentative(finding, group.representative)) {
-      group.representative = finding;
-    }
-    for (const criterion of finding.wcagCriteria ?? []) group.criteria.add(criterion);
-    for (const selector of finding.selectors ?? []) group.selectors.add(selector);
-    for (const source of finding.sources?.length ? finding.sources : [sourceFor(finding)]) {
-      const sourceKey = `${source.engine}\u0000${source.ruleId}\u0000${source.code}`;
-      const existing = group.sources.get(sourceKey);
-      group.sources.set(sourceKey, {
-        ...source,
-        occurrenceCount: options.sourceAggregation === 'max'
-          ? Math.max(existing?.occurrenceCount ?? 0, positiveCount(source.occurrenceCount))
-          : (existing?.occurrenceCount ?? 0) + positiveCount(source.occurrenceCount),
-      });
-    }
-    groups.set(key, group);
+    addFinding(groups, finding, options.sourceAggregation ?? 'sum');
   }
 
   return [...groups.values()]
@@ -115,6 +90,68 @@ export function deduplicateFindings(
       severityRank(a.severity) - severityRank(b.severity) ||
       a.code.localeCompare(b.code),
     );
+}
+
+function addFinding(
+  groups: Map<string, MutableFinding>,
+  finding: NormalizedFinding,
+  aggregation: 'sum' | 'max',
+): void {
+  const family = FINDING_FAMILIES.find(({ matches }) => matches(finding.code));
+  const key = family ? `family:${family.key}` : `code:${finding.code}`;
+  const group = groups.get(key) ?? createFindingGroup(finding, family);
+  if (isBetterRepresentative(finding, group.representative)) {
+    group.representative = finding;
+  }
+  addValues(group.criteria, finding.wcagCriteria);
+  addValues(group.selectors, finding.selectors);
+  addSources(group.sources, finding, aggregation);
+  groups.set(key, group);
+}
+
+function createFindingGroup(
+  finding: NormalizedFinding,
+  family: FindingFamily | undefined,
+): MutableFinding {
+  return {
+    representative: finding,
+    criteria: new Set<string>(),
+    selectors: new Set<string>(),
+    sources: new Map<string, FindingSource>(),
+    family,
+  };
+}
+
+function addValues(
+  target: Set<string>,
+  values: readonly string[] | undefined,
+): void {
+  for (const value of values ?? []) target.add(value);
+}
+
+function addSources(
+  target: Map<string, FindingSource>,
+  finding: NormalizedFinding,
+  aggregation: 'sum' | 'max',
+): void {
+  const sources = finding.sources?.length ? finding.sources : [sourceFor(finding)];
+  for (const source of sources) {
+    const key = `${source.engine}\u0000${source.ruleId}\u0000${source.code}`;
+    const previous = target.get(key)?.occurrenceCount ?? 0;
+    const next = positiveCount(source.occurrenceCount);
+    target.set(key, {
+      ...source,
+      occurrenceCount: aggregateOccurrenceCount(previous, next, aggregation),
+    });
+  }
+}
+
+function aggregateOccurrenceCount(
+  previous: number,
+  next: number,
+  aggregation: 'sum' | 'max',
+): number {
+  return aggregation === 'max' ? Math.max(previous, next) : previous + next;
 }
 
 function finalizeFinding(group: MutableFinding): NormalizedFinding {
