@@ -35,7 +35,9 @@ Accessibility-Befunde.
 mit `depth: 1` die Startseite und deren direkt verlinkte Seiten geprüft, begrenzt
 auf insgesamt 10 Seiten. `depth: 0` prüft nur die Startseite. Externe
 Hosts, Fragmentvarianten, Download-Links und Nicht-HTML-Antworten werden nicht
-geprüft. `maxPages` setzt unabhängig von der Tiefe eine harte Obergrenze.
+geprüft. `depth` ist auf vier Ebenen begrenzt; `maxPages` setzt unabhängig von
+der Tiefe die vom Aufrufer gewünschte Obergrenze und besitzt keinen versteckten
+1.000-Seiten-Deckel.
 
 Das Paket lädt URLs nicht ungefragt selbst. Die Anwendung behält dadurch die
 Kontrolle über SSRF-Schutz, Authentifizierung, Timeouts und Browser-Kontexte.

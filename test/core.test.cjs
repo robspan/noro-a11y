@@ -100,11 +100,23 @@ test('crawler options reject unsafe bounds', async () => {
   const { crawlAccessibilityChecks } = packageApi;
   await assert.rejects(
     crawlAccessibilityChecks('https://example.org', {
-      depth: 11,
+      depth: 5,
       loadPage: async () => ({ url: '', html: '' }),
     }),
-    /depth muss eine ganze Zahl zwischen 0 und 10/,
+    /depth muss eine ganze Zahl zwischen 0 und 4/,
   );
+
+  const result = await crawlAccessibilityChecks('https://example.org', {
+    depth: 0,
+    maxPages: 3_000,
+    engines: ['axe'],
+    loadPage: async (url) => ({
+      url,
+      html: '<html lang="de"><title>Start</title></html>',
+      http: { status: 200, headers: { 'content-type': 'text/html' } },
+    }),
+  });
+  assert.equal(result.maxPages, 3_000);
 });
 
 test('the crawler defaults to depth one and at most ten loaded targets', async () => {

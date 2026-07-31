@@ -9,8 +9,7 @@ import type {
 } from './types.ts';
 
 const DEFAULT_MAX_PAGES = 10;
-const MAX_DEPTH = 10;
-const MAX_PAGE_LIMIT = 1_000;
+const MAX_DEPTH = 4;
 
 interface QueueItem {
   url: string;
@@ -51,7 +50,12 @@ export async function crawlAccessibilityChecks(
   options: AccessibilityCrawlOptions,
 ): Promise<AccessibilityCrawlResult> {
   const depth = boundedInteger('depth', options.depth ?? 1, 0, MAX_DEPTH);
-  const maxPages = boundedInteger('maxPages', options.maxPages ?? DEFAULT_MAX_PAGES, 1, MAX_PAGE_LIMIT);
+  const maxPages = boundedInteger(
+    'maxPages',
+    options.maxPages ?? DEFAULT_MAX_PAGES,
+    1,
+    Number.MAX_SAFE_INTEGER,
+  );
   const requestedEngines = resolveEngines(options.engines ?? 'all');
   const canonicalStartUrl = canonicalizeHttpUrl(startUrl);
   if (!canonicalStartUrl) throw new Error('Die Startadresse muss eine absolute HTTP- oder HTTPS-URL sein.');
