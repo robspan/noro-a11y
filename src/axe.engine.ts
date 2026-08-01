@@ -1,5 +1,6 @@
 import axe from 'axe-core';
 import type { AxeResults, Result, RunOptions } from 'axe-core';
+import axeTags from './axe-wcag-tags.json' with { type: 'json' };
 import { normalizedFinding } from './catalog.ts';
 import type {
   AccessibilityImpact,
@@ -11,11 +12,15 @@ import type {
   FindingSeverity,
 } from './types.ts';
 
-const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
+const AXE_TAGS = axeTags;
+const AXE_RULE_IDS = axe
+  .getRules(AXE_TAGS)
+  .map(({ ruleId }) => ruleId)
+  .sort();
 const AXE_RUN_OPTIONS: RunOptions = {
   runOnly: {
-    type: 'tag',
-    values: AXE_TAGS,
+    type: 'rule',
+    values: AXE_RULE_IDS,
   },
   resultTypes: ['violations', 'incomplete', 'passes', 'inapplicable'],
   // The screening evaluates the containing document. Embedded documents are
@@ -80,11 +85,12 @@ export async function runAxeEngine(input: AccessibilityRunInput): Promise<Engine
   );
   const violations = results.violations.map((item) => axeFinding(item, false, germanRules));
   const manualReview = results.incomplete.map((item) => axeFinding(item, true, germanRules));
-  const rulesConfigured =
-    results.passes.length +
-    results.incomplete.length +
-    results.violations.length +
-    results.inapplicable.length;
+  const rulesConfigured = new Set([
+    ...results.passes,
+    ...results.incomplete,
+    ...results.violations,
+    ...results.inapplicable,
+  ].map(({ id }) => id)).size;
 
   return {
     engine: 'axe',

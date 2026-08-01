@@ -255,6 +255,11 @@ test('axe metadata is derived from every returned runtime bucket', async () => {
     [...executedOptions.resultTypes].sort(),
     ['inapplicable', 'incomplete', 'passes', 'violations'],
   );
+  assert.equal(executedOptions.runOnly.type, 'rule');
+  assert.equal(executedOptions.runOnly.values.length, 70);
+  assert.equal(new Set(executedOptions.runOnly.values).size, 70);
+  assert.ok(executedOptions.runOnly.values.includes('area-alt'));
+  assert.ok(executedOptions.runOnly.values.includes('video-caption'));
   assert.equal(axeResult.metadata.axeVersion, 'fixture-runtime-9.9.9');
   assert.equal(axeResult.metadata.rulesConfigured, 10);
   assert.equal(axeResult.metadata.ruleEvaluations, 10);
@@ -308,7 +313,7 @@ test('axe runs in Playwright as the sole automated accessibility engine', async 
       'a rule without matching content is not recorded as a passed criterion',
     );
     assert.equal(axeResult.metadata.axeVersion, '4.12.1');
-    assert.ok(axeResult.metadata.rulesConfigured > 0);
+    assert.equal(axeResult.metadata.rulesConfigured, 70);
     assert.equal(
       axeResult.metadata.rulesConfigured,
       axeResult.metadata.ruleEvaluations,
