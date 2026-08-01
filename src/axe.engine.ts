@@ -173,6 +173,7 @@ function scoreRuleObservations(
     wcagCriteria: wcagCriteria(item.tags),
     passedTargets: outcome === 'passed' ? item.nodes.length : 0,
     failedTargets: outcome === 'failed' ? item.nodes.length : 0,
+    affectedPages: outcome === 'failed' && item.nodes.length > 0 ? 1 : 0,
     manualTargets: outcome === 'manual' ? item.nodes.length : 0,
     inapplicableEvaluations: outcome === 'inapplicable' ? 1 : 0,
   }));

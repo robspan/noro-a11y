@@ -49,6 +49,8 @@ export interface AutomatedRuleObservation {
   wcagCriteria: string[];
   passedTargets: number;
   failedTargets: number;
+  /** Number of distinct crawled pages on which this rule produced a confirmed failure. */
+  affectedPages: number;
   manualTargets: number;
   inapplicableEvaluations: number;
 }
