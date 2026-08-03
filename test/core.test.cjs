@@ -199,45 +199,50 @@ test('axe findings are German and retain stable rule IDs across report formats',
 });
 
 test('axe metadata is derived from every returned runtime bucket', async () => {
-  const result = (id, tags = ['wcag111']) => ({
+  const result = (id) => ({
     id,
     impact: 'moderate',
-    tags,
+    tags: ['attacker-controlled-tag-is-ignored'],
     description: `Beschreibung ${id}`,
     help: `Hilfe ${id}`,
-    helpUrl: `https://example.org/rules/${id}`,
+    helpUrl: `javascript:alert('${id}')`,
     nodes: [],
   });
-  const fixture = {
-    testEngine: { name: 'axe-core', version: 'fixture-runtime-9.9.9' },
-    testRunner: { name: 'fixture' },
-    testEnvironment: {},
-    timestamp: '2026-07-27T00:00:00.000Z',
-    url: 'https://example.org',
-    toolOptions: {},
-    passes: [result('pass-one', ['wcag111'])],
-    incomplete: [
-      { ...result('review-one', ['wcag121']), nodes: [{ target: [['video']] }] },
-      { ...result('review-two', ['wcag131']), nodes: [{ target: [['main']] }] },
-    ],
-    violations: [
-      { ...result('fail-one', ['wcag141']), nodes: [{ target: [['img']] }] },
-      { ...result('fail-two', ['wcag211']), nodes: [{ target: [['button']] }] },
-      { ...result('fail-three', ['wcag241']), nodes: [{ target: [['a']] }] },
-    ],
-    inapplicable: [
-      result('irrelevant-one', ['wcag311']),
-      result('irrelevant-two', ['wcag312']),
-      result('irrelevant-three', ['wcag321']),
-      result('irrelevant-four', ['wcag322']),
-    ],
-  };
   let executedOptions;
   const page = {
     evaluate: async (_callback, argument) => {
-      if (typeof argument === 'string') return true;
-      executedOptions = argument;
-      return fixture;
+      if (!argument?.options) return 'attested';
+      executedOptions = argument.options;
+      const selected = [
+        'area-alt',
+        'audio-caption',
+        'color-contrast',
+        'image-alt',
+        'label',
+        'link-name',
+      ];
+      return {
+        testEngine: { name: 'axe-core', version: argument.expectedVersion },
+        testRunner: { name: 'fixture' },
+        testEnvironment: {},
+        timestamp: '2026-07-27T00:00:00.000Z',
+        url: 'https://example.org',
+        toolOptions: {},
+        passes: [result(selected[0])],
+        incomplete: [
+          { ...result(selected[1]), nodes: [{ target: ['video'] }] },
+          { ...result(selected[2]), nodes: [{ target: ['main'] }] },
+        ],
+        violations: [
+          { ...result(selected[2]), nodes: [{ target: ['summary'] }] },
+          { ...result(selected[3]), nodes: [{ target: ['img'] }] },
+          { ...result(selected[4]), nodes: [{ target: [['#form-host', 'button']] }] },
+          { ...result(selected[5]), nodes: [{ target: ['a'] }] },
+        ],
+        inapplicable: argument.options.runOnly.values
+          .filter((id) => !selected.includes(id))
+          .map(result),
+      };
     },
   };
 
@@ -260,27 +265,35 @@ test('axe metadata is derived from every returned runtime bucket', async () => {
   assert.equal(new Set(executedOptions.runOnly.values).size, 70);
   assert.ok(executedOptions.runOnly.values.includes('area-alt'));
   assert.ok(executedOptions.runOnly.values.includes('video-caption'));
-  assert.equal(axeResult.metadata.axeVersion, 'fixture-runtime-9.9.9');
-  assert.equal(axeResult.metadata.rulesConfigured, 10);
-  assert.equal(axeResult.metadata.ruleEvaluations, 10);
+  assert.equal(axeResult.metadata.axeVersion, '4.12.1');
+  assert.equal(axeResult.metadata.rulesConfigured, 70);
+  assert.equal(axeResult.metadata.ruleEvaluations, 71);
   assert.equal(axeResult.metadata.rulesWithoutFindings, 1);
   assert.equal(axeResult.metadata.rulesNeedingManualReview, 2);
-  assert.equal(axeResult.metadata.rulesWithViolations, 3);
-  assert.equal(axeResult.metadata.rulesWithoutRelevantContent, 4);
-  assert.deepEqual(
+  assert.equal(axeResult.metadata.rulesWithViolations, 4);
+  assert.equal(axeResult.metadata.rulesWithoutRelevantContent, 64);
+  const outcomes = new Map(
     axeResult.criterionResults.map(({ source, outcome }) => [source, outcome]),
-    [
-      ['axe.pass-one', 'passed'],
-      ['axe.review-one', 'needs-review'],
-      ['axe.review-two', 'needs-review'],
-      ['axe.fail-one', 'failed'],
-      ['axe.fail-two', 'failed'],
-      ['axe.fail-three', 'failed'],
-    ],
   );
+  assert.deepEqual([...outcomes.entries()], [
+    ['axe.area-alt', 'passed'],
+    ['axe.audio-caption', 'needs-review'],
+    ['axe.color-contrast', 'failed'],
+    ['axe.image-alt', 'failed'],
+    ['axe.label', 'failed'],
+    ['axe.link-name', 'failed'],
+  ]);
   assert.equal(
-    axeResult.criterionResults.some(({ source }) => source.startsWith('axe.irrelevant-')),
+    axeResult.criterionResults.some(({ source }) => source === 'axe.video-caption'),
     false,
+  );
+  assert.ok(axeResult.findings.every(({ helpUrl }) =>
+    helpUrl?.startsWith('https://dequeuniversity.com/rules/axe/4.12/'),
+  ));
+  assert.equal(axeResult.findings.some(({ helpUrl }) => helpUrl?.startsWith('javascript:')), false);
+  assert.deepEqual(
+    axeResult.findings.find(({ ruleId }) => ruleId === 'violation-label')?.selectors,
+    ['#form-host > button'],
   );
 });
 
@@ -346,6 +359,115 @@ test('axe runs in Playwright as the sole automated accessibility engine', async 
       ),
     );
     await context.close();
+  } finally {
+    await browser.close();
+  }
+});
+
+test('a hostile page-provided window.axe runtime cannot forge findings or help links', async () => {
+  const { chromium } = await import('playwright');
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    const html = '<!doctype html><html lang="de"><head><title>Fixture</title></head><body><main><img src="x"></main></body></html>';
+    await page.setContent(html);
+    await page.evaluate(() => {
+      const nativeEval = window.eval;
+      window.__capturedEvalSources = [];
+      window.eval = (...args) => {
+        window.__capturedEvalSources.push(String(args[0] ?? ''));
+        return nativeEval(...args);
+      };
+      window.axe = {
+        version: '4.12.1',
+        runPartial() {},
+        async run() {
+          const forged = {
+            id: 'image-alt',
+            impact: 'minor',
+            tags: ['wcag111'],
+            description: 'Forged description',
+            help: 'Forged help',
+            helpUrl: 'javascript:alert(document.domain)',
+            nodes: [{ target: [['img']] }],
+          };
+          return {
+            testEngine: { name: 'axe-core', version: '4.12.1' },
+            testRunner: { name: 'forged' },
+            testEnvironment: {},
+            timestamp: new Date().toISOString(),
+            url: document.URL,
+            toolOptions: {},
+            passes: [],
+            incomplete: [],
+            violations: [forged],
+            inapplicable: [],
+          };
+        },
+      };
+    });
+
+    const result = await packageApi.runAccessibilityChecks(
+      {
+        url: 'https://example.org',
+        html,
+        http: { status: 200, headers: { 'content-type': 'text/html' } },
+        page,
+      },
+      { engines: ['axe'] },
+    );
+    const imageAlt = result.findings.find(({ code }) =>
+      code === 'axe.violation-image-alt');
+
+    assert.ok(imageAlt);
+    assert.match(imageAlt.helpUrl, /^https:\/\/dequeuniversity\.com\/rules\/axe\/4\.12\/image-alt/);
+    assert.equal(result.findings.some(({ helpUrl }) => helpUrl?.startsWith('javascript:')), false);
+    assert.equal(result.results[0].metadata.rulesConfigured, 70);
+    const capturedEvalSources = await page.evaluate(() => [
+      ...window.__capturedEvalSources,
+    ]);
+    assert.equal(
+      capturedEvalSources.some((source) =>
+        source.includes('axe.configure') || source.includes('__spanier_one_axe_')),
+      false,
+    );
+    await page.close();
+  } finally {
+    await browser.close();
+  }
+});
+
+test('a non-configurable hostile window.axe runtime fails closed', async () => {
+  const { chromium } = await import('playwright');
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent('<!doctype html><html lang="de"><title>Fixture</title><main></main></html>');
+    await page.evaluate(() => {
+      Object.defineProperty(window, 'axe', {
+        value: {
+          version: '4.12.1',
+          async run() {
+            throw new Error('must not run');
+          },
+        },
+        configurable: false,
+        writable: false,
+      });
+    });
+
+    await assert.rejects(
+      packageApi.runAccessibilityChecks(
+        {
+          url: 'https://example.org',
+          html: '<html lang="de"><title>Fixture</title><main></main></html>',
+          page,
+        },
+        { engines: ['axe'] },
+      ),
+      /non-replaceable, untrusted axe runtime/,
+    );
+    await page.close();
   } finally {
     await browser.close();
   }
